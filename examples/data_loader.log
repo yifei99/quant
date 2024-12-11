@@ -1,0 +1,3 @@
+2024-12-09 16:12:34,695:INFO:Exact file ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2023-01-01_to_2023-12-31.h5 not found. Performing fuzzy search.
+2024-12-09 16:12:34,696:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 16:12:40,171:INFO:Loaded data from ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2021-03-31_to_2024-12-05.h5

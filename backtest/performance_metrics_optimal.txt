@@ -1,0 +1,4 @@
+Optimal Threshold: 695000000
+Annualized Return: 11.10%
+Sharpe Ratio: 0.89
+Max Drawdown: -12.63%
