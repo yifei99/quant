@@ -1,0 +1,32 @@
+2024-12-09 14:57:52,392:ERROR:The folder ../dataset/ETHUSDT/spot/1d does not exist.
+2024-12-09 14:58:40,878:ERROR:The folder ../dataset/ETHUSDT/1d/spot/spot does not exist.
+2024-12-09 14:58:48,080:ERROR:The folder ../dataset/ETHUSDT/1d/spot/spot does not exist.
+2024-12-09 15:00:39,853:ERROR:The folder ./dataset/binance/BTCUSDT/spot/1d does not exist.
+2024-12-09 15:00:39,853:ERROR:The folder ./dataset/binance/BTCUSDT/spot/1d does not exist.
+2024-12-09 15:01:14,499:INFO:Exact file ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2023-01-01_to_2023-02-01.h5 not found. Performing fuzzy search.
+2024-12-09 15:01:14,499:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 15:02:00,232:INFO:Loaded data from ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2021-03-31_to_2024-12-05.h5
+2024-12-09 15:02:00,253:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 15:04:19,272:ERROR:The folder ./dataset/binance/BTCUSDT/spot/1d does not exist.
+2024-12-09 15:07:57,959:INFO:Exact file ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2023-01-01_to_2023-02-01.h5 not found. Performing fuzzy search.
+2024-12-09 15:07:57,960:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 15:08:22,408:INFO:Exact file ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2023-01-01_to_2023-02-01.h5 not found. Performing fuzzy search.
+2024-12-09 15:08:22,409:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 15:14:33,820:ERROR:The folder ../dataset/ETHUSDT/1d/spot/spot does not exist.
+2024-12-09 15:14:47,143:ERROR:The folder ../dataset/ETHUSDT/1d/spot/spot does not exist.
+2024-12-09 15:15:02,453:ERROR:The folder ../dataset/1d/spot/spot does not exist.
+2024-12-09 15:15:16,840:ERROR:The folder ../dataset/ETHUSDT/1d/spot/spot does not exist.
+2024-12-09 15:16:04,326:ERROR:The folder ./dataset/binance/BTCUSDT/spot/1d does not exist.
+2024-12-09 15:16:04,327:ERROR:The folder ./dataset/binance/BTCUSDT/spot/1d does not exist.
+2024-12-09 15:16:27,487:INFO:Exact file ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2023-01-01_to_2023-02-01.h5 not found. Performing fuzzy search.
+2024-12-09 15:16:27,488:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 15:16:40,562:INFO:Loaded data from ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2021-03-31_to_2024-12-05.h5
+2024-12-09 15:16:40,583:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 15:17:26,636:INFO:Exact file ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2023-01-01_to_2023-02-01.h5 not found. Performing fuzzy search.
+2024-12-09 15:17:26,636:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 15:17:32,941:INFO:Loaded data from ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2021-03-31_to_2024-12-05.h5
+2024-12-09 15:17:32,960:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 15:18:20,790:INFO:Exact file ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2023-01-01_to_2023-02-01.h5 not found. Performing fuzzy search.
+2024-12-09 15:18:20,790:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
+2024-12-09 15:18:23,863:INFO:Loaded data from ../dataset/binance/BTCUSDT/spot/1d/BTCUSDT_1d_2021-03-31_to_2024-12-05.h5
+2024-12-09 15:18:23,882:INFO:Found 1 HDF5 files in ../dataset/binance/BTCUSDT/spot/1d.
