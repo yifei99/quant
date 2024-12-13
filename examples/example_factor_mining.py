@@ -6,10 +6,19 @@ import logging
 from backtest.backtest_engine import BacktestEngine
 from backtest.strategy import FactorBasedStrategy
 from backtest.performance import PerformanceEvaluator
-from factors.factor_definitions import USDTIssuanceFactor
+from factors.factor_definitions import USDTIssuance2Factor
 from factors.factor_engine import FactorEngine
 from factors.optimizer import StrategyOptimizer
 from data.data_loader import DataLoader
+import multiprocessing
+
+
+# 设置显示所有行和列
+pd.set_option('display.max_rows', None)  # 显示所有行
+pd.set_option('display.max_columns', None)  # 显示所有列
+pd.set_option('display.width', None)  # 显示所有宽度
+pd.set_option('display.max_colwidth', None)  # 显示所有列宽
+
 
 def load_usdt_issuance_data(usdt_file_path):
     """
@@ -82,7 +91,7 @@ def main():
     logger.info(f"USDT Issuance Statistics: {data['USDT_issuance'].describe()}")
     # 初始化因子引擎并注册因子
     factor_engine = FactorEngine()
-    usdt_factor = USDTIssuanceFactor(name='usdt_issuance', direction=1, threshold=1000000000)
+    usdt_factor = USDTIssuance2Factor(name='usdt_issuance', upper_threshold=1000000000, lower_threshold=-1000000000)
     factor_engine.register_factor(usdt_factor)
     logger.info(f"Generated factor: {usdt_factor.calculate(data).head()}")
 
@@ -127,35 +136,51 @@ def main():
     optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
 
     # 定義要測試的閾值範圍
-    threshold_values = list(range(1000000, 1500000000, 1000000))  #起始，終止，步長
+    threshold_params = {
+        'upper_threshold': list(range(0, 20000000, 2500000)),
+        'lower_threshold': list(range(-20000000, 0, 2500000))
+    }
 
     # 執行優化
     logger.info("Starting optimization...")
-    optimization_results = optimizer.optimize_threshold(
-        data=data,
-        threshold_values=threshold_values,
-        factor_class=USDTIssuanceFactor,
-        strategy_class=FactorBasedStrategy
-    )
-    logger.info(f"Optimization Results: {optimization_results}")
 
-    # 检查 optimization_results 是否为空
-    if not optimization_results:
-        logger.error("Optimization results are empty!")
-        return
-    # 找到最優閾值
-    optimal_threshold, optimal_sharpe = optimizer.find_optimal_threshold(optimization_results)
-    logger.info(f"Optimal Threshold: {optimal_threshold}, Sharpe Ratio: {optimal_sharpe:.4f}")
-    print(f"\nOptimal Threshold: {optimal_threshold}, Sharpe Ratio: {optimal_sharpe:.4f}")
+    # Get number of CPU cores and subtract 1 for optimal worker count
+    max_workers = max(1, multiprocessing.cpu_count() - 1)
+    logger.info(f"Using {max_workers} workers for optimization")
+
+    optimization_results = optimizer.optimize_thresholds(
+        data=data,
+        threshold_params=threshold_params,
+        factor_class=USDTIssuance2Factor,
+        strategy_class=FactorBasedStrategy,
+        max_workers=max_workers
+    )
+    logger.info("Optimization completed")
+
+    # 找到最優閾值組合
+    optimal_params, optimal_sharpe, optimal_metrics = optimizer.find_optimal_thresholds(optimization_results)
+    logger.info(f"Optimal Parameters: {optimal_params}")
+    logger.info(f"Optimal Sharpe Ratio: {optimal_sharpe:.4f}")
+
     # 保存优化结果
-    with open('optimization_results.csv', 'w') as f:
-        f.write("Threshold,Sharpe_Ratio\n")
-        for threshold, sharpe in optimization_results.items():
-            f.write(f"{threshold},{sharpe:.4f}\n")
+    results_df = pd.DataFrame([
+        {
+            'upper_threshold': combo[0],
+            'lower_threshold': combo[1],
+            'sharpe_ratio': result['sharpe_ratio']
+        }
+        for combo, result in optimization_results.items()
+    ])
+    results_df.to_csv('optimization_results.csv', index=False)
     logger.info("Optimization results saved to 'optimization_results.csv'.")
+
     # 使用最優閾值重新運行回測
-    logger.info("Running backtest with optimal threshold...")
-    optimal_factor = USDTIssuanceFactor(name='usdt_issuance', threshold=optimal_threshold)
+    logger.info("Running backtest with optimal thresholds...")
+    optimal_factor = USDTIssuance2Factor(
+        name='usdt_issuance',
+        upper_threshold=optimal_params['upper_threshold'],
+        lower_threshold=optimal_params['lower_threshold']
+    )
     factor_engine_optimal = FactorEngine()
     factor_engine_optimal.register_factor(optimal_factor)
 
@@ -187,7 +212,7 @@ def main():
     #             f.write(f"{key}: {value:.2f}\n")
     with open('performance_metrics_optimal.txt', 'w') as f:
         # 写入最优阈值信息
-        f.write(f"Optimal Threshold: {optimal_threshold}\n")
+        f.write(f"Optimal Threshold: {optimal_params}\n")
         for key, value in metrics_optimal.items():
             if 'Return' in key or 'Drawdown' in key:
                 f.write(f"{key}: {value * 100:.2f}%\n")
@@ -198,24 +223,35 @@ def main():
     import matplotlib.pyplot as plt
 
     def visualize_optimization_results(optimization_results):
-        # 提取参数和 Sharpe 比率
-        thresholds = list(optimization_results.keys())
-        sharpe_ratios = list(optimization_results.values())
+        # 创建3D图表来显示双阈值优化结果
+        fig = plt.figure(figsize=(12, 8))
+        ax = fig.add_subplot(111, projection='3d')
         
-        # 创建图表
-        plt.figure(figsize=(10, 6))
-        plt.plot(thresholds, sharpe_ratios, marker='o', linestyle='-', color='b', label='Sharpe Ratio')
+        # 提取数据
+        upper_thresholds = []
+        lower_thresholds = []
+        sharpe_ratios = []
+        
+        for params, result in optimization_results.items():
+            upper_thresholds.append(result['params']['upper_threshold'])
+            lower_thresholds.append(result['params']['lower_threshold'])
+            sharpe_ratios.append(result['sharpe_ratio'])
+        
+        # 创建散点图
+        scatter = ax.scatter(upper_thresholds, lower_thresholds, sharpe_ratios, 
+                           c=sharpe_ratios, cmap='viridis')
         
         # 添加标题和标签
-        plt.title("Optimization Results: Sharpe Ratio vs Threshold", fontsize=14)
-        plt.xlabel("Threshold", fontsize=12)
-        plt.ylabel("Sharpe Ratio", fontsize=12)
-        plt.axhline(y=0, color='r', linestyle='--', linewidth=1, label='Zero Line')
-        plt.grid(True, linestyle='--', alpha=0.7)
-        plt.legend(fontsize=12)
+        ax.set_title("Optimization Results: Sharpe Ratio vs Thresholds", fontsize=14)
+        ax.set_xlabel("Upper Threshold", fontsize=12)
+        ax.set_ylabel("Lower Threshold", fontsize=12)
+        ax.set_zlabel("Sharpe Ratio", fontsize=12)
         
-        # 保存图表到文件
-        plt.savefig("optimization_results_plot.png", dpi=300)
+        # 添加颜色条
+        plt.colorbar(scatter, label='Sharpe Ratio')
+        
+        # 保存图表
+        plt.savefig("optimization_results_3d_plot.png", dpi=300, bbox_inches='tight')
         plt.show()
 
     # 使用可视化函数

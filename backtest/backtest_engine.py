@@ -36,12 +36,12 @@ class BacktestEngine:
         """
         # 如果提供了因子引擎，先计算因子并合并到数据中
         if factor_engine:
-            self.logger.info("Calculating factors...")
+            # self.logger.info("Calculating factors...")
             factor_values = factor_engine.calculate_factors(data)
             data = pd.concat([data, factor_values], axis=1)
 
         # 生成交易信号
-        self.logger.info("Generating signals...")
+        # self.logger.info("Generating signals...")
         signals = strategy.generate_signals(data)
 
       # 初始化投资组合

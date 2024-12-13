@@ -31,7 +31,7 @@ class FactorBasedStrategy(BaseStrategy):
     基于因子的交易策略：
     根据因子信号生成买入/卖出信号。
     """
-    def __init__(self, factors: List[BaseFactor], name='Factor_Based_Strategy', normalize_factors=True):
+    def __init__(self, factors: List[BaseFactor], name='Factor_Based_Strategy', normalize_factors=False):
         """
         参数:
             factors (List[BaseFactor]): 因子列表，每个因子对象包含名称和方向。
@@ -62,12 +62,12 @@ class FactorBasedStrategy(BaseStrategy):
 
             factor_signal = data[factor.name]
 
-            # 可选：对因子信号进行归一化
-            if self.normalize_factors:
-                factor_signal = (factor_signal - factor_signal.mean()) / factor_signal.std()
+            # # 可选：对因子信号进行归一化
+            # if self.normalize_factors:
+            #     factor_signal = (factor_signal - factor_signal.mean()) / factor_signal.std()
 
             # 考虑因子的方向性
-            signals['signal'] += factor.direction * factor_signal
+            signals['signal'] += factor_signal
 
         # # 调试信息：输出综合信号的统计数据
         # print("综合信号统计数据:")
@@ -80,6 +80,7 @@ class FactorBasedStrategy(BaseStrategy):
         signals['positions'] = signals['signal'].diff()
 
         # # 调试信息：输出信号和交易位置的分布
+        # print(self.factors)
         # print("信号分布:")
         # print(signals['signal'].value_counts())
         # print("交易位置分布:")

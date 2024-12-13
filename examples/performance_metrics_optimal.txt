@@ -1,0 +1,4 @@
+Optimal Threshold: {'upper_threshold': 7500000, 'lower_threshold': -7500000}
+Annualized Return: -42.59%
+Sharpe Ratio: 0.74
+Max Drawdown: -100.00%

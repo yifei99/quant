@@ -124,33 +124,33 @@ class DataLoader:
             # 返回匹配的文件列表
             return matching_files
 
-# 使用示例
-if __name__ == "__main__":
-    # 初始化 DataLoader 實例
-    data_folder = "../dataset"  # 根目錄
-    data_loader = DataLoader(data_folder)
+# # 使用示例
+# if __name__ == "__main__":
+#     # 初始化 DataLoader 實例
+#     data_folder = "../dataset"  # 根目錄
+#     data_loader = DataLoader(data_folder)
 
-    # 設定參數
-    exchange = "binance"
-    symbol = "BTCUSDT"
-    interval = "1d"
-    start_date = "2023-01-01"
-    end_date = "2023-02-01"
-    data_type = "spot"
+#     # 設定參數
+#     exchange = "binance"
+#     symbol = "BTCUSDT"
+#     interval = "1d"
+#     start_date = "2023-01-01"
+#     end_date = "2023-02-01"
+#     data_type = "spot"
 
-    # 嘗試加載特定範圍的數據
-    try:
-        data = data_loader.load_data(
-            exchange, symbol, interval, start_date, end_date, data_type
-        )
-        if isinstance(data, list):
-            # 如果返回的是文件列表，提示用戶選擇
-            print("Multiple matching files found:")
-            for idx, file in enumerate(data, 1):
-                print(f"{idx}. {file}")
-            choice = int(input("Enter the number of the file you want to load: "))
-            selected_file = data[choice - 1]
-            data = data_loader.load_data_from_path(selected_file)
-        print(data.head())
-    except FileNotFoundError as e:
-        print(e)
+#     # 嘗試加載特定範圍的數據
+#     try:
+#         data = data_loader.load_data(
+#             exchange, symbol, interval, start_date, end_date, data_type
+#         )
+#         if isinstance(data, list):
+#             # 如果返回的是文件列表，提示用戶選擇
+#             print("Multiple matching files found:")
+#             for idx, file in enumerate(data, 1):
+#                 print(f"{idx}. {file}")
+#             choice = int(input("Enter the number of the file you want to load: "))
+#             selected_file = data[choice - 1]
+#             data = data_loader.load_data_from_path(selected_file)
+#         print(data.head())
+#     except FileNotFoundError as e:
+#         print(e)
