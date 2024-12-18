@@ -153,11 +153,11 @@ class DataDownloader:
 
 
 # 使用示例：
-symbol = "ETHUSDT"
+symbol = "DOTUSDT"
 interval = "1d"  # 可以改為 "1m", "5m", "1h", "1d" 等
 start_date = "2022-05-12"
 end_date = "2024-12-05"
-data_folder = "./dataset/binance"
+data_folder = "../dataset/binance"
 data_type = "spot"
 exchange = "binance"
 
