@@ -141,22 +141,22 @@ class DataDownloader:
         """
         統一調用下載和處理數據的方法
         """
-        # 根據選擇的交易所下載數據
-        if self.exchange == "binance":
-            self.download_binance_data()
-        elif self.exchange == "bybit":
-            self.download_bybit_data()  # 將來可以實現 Bybit 數據下載邏輯
-        else:
-            raise ValueError(f"Unsupported exchange: {self.exchange}")
+        # # 根據選擇的交易所下載數據
+        # if self.exchange == "binance":
+        #     self.download_binance_data()
+        # elif self.exchange == "bybit":
+        #     self.download_bybit_data()  # 將來可以實現 Bybit 數據下載邏輯
+        # else:
+        #     raise ValueError(f"Unsupported exchange: {self.exchange}")
         
         return self.process_data()
 
 
 # 使用示例：
-symbol = "DOTUSDT"
-interval = "1d"  # 可以改為 "1m", "5m", "1h", "1d" 等
-start_date = "2022-05-12"
-end_date = "2024-12-05"
+symbol = "BTCUSDT"
+interval = "1s"  # 可以改為 "1m", "5m", "1h", "1d" 等
+start_date = "2017-08-17"
+end_date = "2024-12-23"
 data_folder = "../dataset/binance"
 data_type = "spot"
 exchange = "binance"

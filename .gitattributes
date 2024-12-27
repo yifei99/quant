@@ -1,0 +1,2 @@
+*.h5 !text !filter !merge !diff
+*.h5 filter=lfs diff=lfs merge=lfs -text
