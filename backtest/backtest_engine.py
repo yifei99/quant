@@ -5,6 +5,7 @@ import numpy as np
 import logging
 from .strategy import BaseStrategy
 from factors.factor_engine import FactorEngine
+from .performance import PerformanceEvaluator
 
 class BacktestEngine:
     """
@@ -36,59 +37,63 @@ class BacktestEngine:
         """
         # 如果提供了因子引擎，先计算因子并合并到数据中
         if factor_engine:
-            # self.logger.info("Calculating factors...")
             factor_values = factor_engine.calculate_factors(data)
             data = pd.concat([data, factor_values], axis=1)
 
         # 生成交易信号
-        # self.logger.info("Generating signals...")
         signals = strategy.generate_signals(data)
 
-      # 初始化投资组合
+        # 初始化投资组合
         portfolio = pd.DataFrame(index=data.index)
-        portfolio['holdings'] = 0.0
-        portfolio['cash'] = self.initial_capital
-        portfolio['total'] = self.initial_capital
+        portfolio['holdings'] = 0.0     # 持仓数量
+        portfolio['total'] = 0.0        # 累计收益
+        portfolio['positions'] = signals['positions']  # 交易信号
+        portfolio['cost_basis'] = 0.0   # 开仓成本
         
-        # 生成交易信号
-        signals = strategy.generate_signals(data)
-        
-        # 记录每次交易的数量
-        portfolio['positions'] = signals['positions']
+        TRADE_AMOUNT = 10000  # 每次交易金额固定为 1 万
         
         # 模拟交易
         for i in range(len(data)):
-            if i == 0:
-                continue
-                
             current_price = data.iloc[i]['close']
             signal = signals['positions'].iloc[i]
             
+            if i == 0:
+                portfolio.iloc[i, portfolio.columns.get_loc('total')] = 0
+                continue
+                
+            # 复制前一天的状态
+            portfolio.iloc[i] = portfolio.iloc[i-1]
+            
             # 如果有交易信号
             if signal != 0:
-                # 计算交易数量（使用全部可用资金的90%）
-                if signal > 0:  # 买入信号
-                    available_amount = (portfolio.iloc[i-1]['cash'] * 0.9) / current_price
-                    cost = available_amount * current_price * (1 + self.commission)
-                    if cost <= portfolio.iloc[i-1]['cash']:
-                        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = available_amount
-                        portfolio.iloc[i, portfolio.columns.get_loc('cash')] = portfolio.iloc[i-1]['cash'] - cost
-                elif signal < 0:  # 卖出信号
-                    holdings = portfolio.iloc[i-1]['holdings']
-                    if holdings > 0:
-                        revenue = holdings * current_price * (1 - self.commission)
-                        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = 0
-                        portfolio.iloc[i, portfolio.columns.get_loc('cash')] = portfolio.iloc[i-1]['cash'] + revenue
-            else:
-                # 没有交易时保持前一天的持仓
-                portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
-                portfolio.iloc[i, portfolio.columns.get_loc('cash')] = portfolio.iloc[i-1]['cash']
+                if signal > 0 and portfolio.iloc[i]['holdings'] == 0:  # 买入信号且当前无持仓
+                    # 计算可买入数量
+                    shares = TRADE_AMOUNT / current_price / (1 + self.commission)
+                    cost = shares * current_price * (1 + self.commission)
+                    
+                    portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = shares
+                    portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = cost
+                    
+                elif signal < 0 and portfolio.iloc[i]['holdings'] > 0:  # 卖出信号且有持仓
+                    # 计算卖出收益
+                    shares = portfolio.iloc[i]['holdings']
+                    revenue = shares * current_price * (1 - self.commission)
+                    cost_basis = portfolio.iloc[i]['cost_basis']
+                    
+                    # 计算这笔交易的收益
+                    trade_profit = revenue - cost_basis
+                    
+                    # 更新投资组合
+                    portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = 0
+                    portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = 0
+                    portfolio.iloc[i, portfolio.columns.get_loc('total')] += trade_profit
             
-            # 更新总资产价值
-            portfolio.iloc[i, portfolio.columns.get_loc('total')] = (
-                portfolio.iloc[i]['holdings'] * current_price + 
-                portfolio.iloc[i]['cash']
-            )
+            # 不需要每日更新市值，因为我们只在平仓时计算收益
         
         portfolio['Date'] = data['Date']
+        
+        # 添加绘图
+        evaluator = PerformanceEvaluator()
+        evaluator.plot_performance(portfolio, data)
+        
         return portfolio

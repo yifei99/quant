@@ -55,6 +55,8 @@ class FactorBasedStrategy(BaseStrategy):
         signals = pd.DataFrame(index=data.index)
         signals['signal'] = 0.0
 
+
+
         # 合并因子信号
         for factor in self.factors:
             if factor.name not in data.columns:
