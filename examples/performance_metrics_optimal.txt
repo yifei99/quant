@@ -1,5 +1,7 @@
-Optimal Threshold: {'upper_threshold': 10000000, 'lower_threshold': -5000000}
-Total Return: 84.76%
-Annualized Return: 8.71%
-Sharpe Ratio: 0.34
-Max Daily Drawdown: -21.70%
+Optimal Threshold: {'upper_threshold': 900000000, 'lower_threshold': 700000000}
+Total Return: 45.09%
+Annualized Return: 10.64%
+Sharpe Ratio: 0.88
+Sortino Ratio: 0.24
+Max Drawdown: -14.57%
+Number of Trades: 84.00

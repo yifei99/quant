@@ -137,8 +137,8 @@ def main():
 
     # 定義要測試的閾值範圍
     threshold_params = {
-        'upper_threshold': list(range(-3200000000, 1500000000, 50000000)),
-        'lower_threshold': list(range(-3200000000, 1500000000, 50000000))
+        'upper_threshold': list(range(-3200000000, 1500000000, 100000000)),
+        'lower_threshold': list(range(-3200000000, 1500000000, 100000000))
     }
 
     # 執行優化

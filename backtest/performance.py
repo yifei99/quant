@@ -14,7 +14,7 @@ class PerformanceEvaluator:
         """
         計算年化收益率。
         
-        收益率 = 最終累計收益 / 10000（初始投資）
+        收益率 = 最終累計收益 / 10000(初始投資)
         """
         INITIAL_INVESTMENT = 10000
         final_value = portfolio['total'].iloc[-1]  # 最終累計收益
@@ -49,16 +49,22 @@ class PerformanceEvaluator:
 
     def calculate_max_drawdown(self, portfolio: pd.DataFrame) -> float:
         """
-        計算最大日度回撤。
-        基於每日收益計算，而不是累計收益。
+        Calculate maximum drawdown from peak, using initial capital as base.
+        Initial capital is set to 10000.
         """
-        # 計算每日收益
-        daily_returns = portfolio['total'].diff()
+        # Calculate returns relative to initial capital
+        returns = portfolio['total'] / 10000 - 1
         
-        # 找出最大單日虧損
-        max_daily_drawdown = daily_returns.min() / 10000  # 相對於固定投資金額10000的百分比
+        # Calculate running maximum
+        running_max = np.maximum.accumulate(returns)
         
-        return max_daily_drawdown if max_daily_drawdown < 0 else 0.0
+        # Calculate drawdowns
+        drawdowns = returns - running_max
+        
+        # Get maximum drawdown
+        max_drawdown = drawdowns.min()
+        
+        return max_drawdown
 
     def calculate_total_return(self, portfolio: pd.DataFrame) -> float:
         """
@@ -71,16 +77,78 @@ class PerformanceEvaluator:
         total_return = final_value / INITIAL_INVESTMENT  # 總回報率
         return total_return
 
+    def calculate_sortino_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.0, target_return=0.0) -> float:
+        """
+        Calculate Sortino Ratio using daily returns.
+        
+        Parameters:
+            portfolio (pd.DataFrame): Portfolio data
+            risk_free_rate (float): Annual risk-free rate
+            target_return (float): Minimum acceptable return
+        """
+        # Calculate daily returns
+        daily_returns = portfolio['total'].diff() / 10000
+        daily_returns = daily_returns.dropna()
+        
+        if len(daily_returns) > 1:
+            # Calculate excess returns
+            excess_returns = daily_returns - risk_free_rate / 365
+            
+            # Calculate downside returns
+            downside_returns = excess_returns[excess_returns < target_return]
+            
+            if len(downside_returns) > 0:
+                # Calculate downside deviation
+                downside_std = np.sqrt(np.mean(downside_returns ** 2))
+                
+                if downside_std != 0:
+                    # Calculate Sortino ratio
+                    sortino_ratio = np.sqrt(365) * excess_returns.mean() / downside_std
+                    return sortino_ratio
+                
+        return 0.0
+
+    def calculate_trade_count(self, portfolio: pd.DataFrame) -> int:
+        """
+        Calculate the actual number of trades by counting position changes.
+        """
+        # Get position changes
+        position_changes = portfolio['holdings'].diff()
+        
+        # Count actual trades (when holdings actually change)
+        trade_count = len(position_changes[position_changes != 0])
+        
+        return trade_count
+
     def calculate_performance_metrics(self, portfolio: pd.DataFrame) -> dict:
         """
-        計算所有績效指標。
+        Calculate all performance metrics.
         """
+        # Ensure portfolio has data
+        if len(portfolio) == 0:
+            return {
+                'Total Return': 0.0,
+                'Annualized Return': 0.0,
+                'Sharpe Ratio': 0.0,
+                'Sortino Ratio': 0.0,
+                'Max Drawdown': 0.0,
+                'Number of Trades': 0
+            }
+
         metrics = {
             'Total Return': self.calculate_total_return(portfolio),
             'Annualized Return': self.calculate_annualized_return(portfolio),
             'Sharpe Ratio': self.calculate_sharpe_ratio(portfolio),
-            'Max Daily Drawdown': self.calculate_max_drawdown(portfolio)
+            'Sortino Ratio': self.calculate_sortino_ratio(portfolio),
+            'Max Drawdown': self.calculate_max_drawdown(portfolio),
+            'Number of Trades': self.calculate_trade_count(portfolio)
         }
+        
+        # Add error checking for metrics
+        for key in metrics:
+            if np.isnan(metrics[key]) or np.isinf(metrics[key]):
+                metrics[key] = 0.0
+                
         return metrics
 
     def plot_performance(self, portfolio: pd.DataFrame, data: pd.DataFrame):

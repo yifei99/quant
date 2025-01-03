@@ -7,16 +7,16 @@ import pandas as pd
 class DataDownloader:
     def __init__(self, symbol, interval, start_date, end_date, data_folder, data_type="spot", exchange="binance"):
         """
-        初始化 DataDownloader 類的實例。
+        Initialize DataDownloader instance.
 
-        參數:
-            symbol (str): 幣種符號，例如 "BTCUSDT"。
-            interval (str): K 線間隔，例如 "1m", "5m", "1h", "1d"。
-            start_date (str): 起始日期，格式 "YYYY-MM-DD"。
-            end_date (str): 結束日期，格式 "YYYY-MM-DD"。
-            data_folder (str): 數據存儲的目錄，例如 "./dataset/binance"。
-            data_type (str): 數據類型，"spot" 表示現貨數據，"futures" 表示合約數據。預設為 "spot"。
-            exchange (str): 交易所名稱，預設為 "binance"。未來可擴展支持其他交易所，如 "bybit"。
+        Args:
+            symbol (str): Trading pair symbol, e.g., "BTCUSDT"
+            interval (str): Kline interval, e.g., "1m", "5m", "1h", "1d"
+            start_date (str): Start date in "YYYY-MM-DD" format
+            end_date (str): End date in "YYYY-MM-DD" format
+            data_folder (str): Data storage directory, e.g., "./dataset/binance"
+            data_type (str): Data type, "spot" or "futures". Default is "spot"
+            exchange (str): Exchange name, default is "binance". Can be extended to support others like "bybit"
         """
         self.symbol = symbol
         self.interval = interval
@@ -31,24 +31,20 @@ class DataDownloader:
         self.create_dir(self.interval_folder)
 
     def create_dir(self, path):
-        """創建目錄"""
-        """
-        參數:
-            path (str): 目錄路徑。
-        """
+        """Create directory if not exists"""
         if not os.path.exists(path):
             os.makedirs(path)
 
     def download_file(self, url, dest_folder):
         """
-        下載指定URL的文件並保存到目標文件夾。
+        Download file from specified URL and save to destination folder.
 
-        參數:
-            url (str): 文件的下載URL。
-            dest_folder (str): 文件的保存目標文件夾。
+        Args:
+            url (str): Download URL
+            dest_folder (str): Destination folder path
 
-        返回:
-            str or None: 下載後的文件路徑，如果下載失敗則返回None。
+        Returns:
+            str or None: Path to downloaded file, None if download fails
         """
         response = requests.get(url)
         if response.status_code == 200:
@@ -106,7 +102,10 @@ class DataDownloader:
 
     def process_data(self):
         """
-        處理數據並儲存為 HDF5 文件
+        Process data and save as HDF5 file.
+        
+        Returns:
+            pd.DataFrame: Processed data
         """
         all_files = [os.path.join(self.interval_folder, f) for f in os.listdir(self.interval_folder) if f.endswith('.csv')]
         all_data = []
@@ -141,22 +140,21 @@ class DataDownloader:
         """
         統一調用下載和處理數據的方法
         """
-        # # 根據選擇的交易所下載數據
-        # if self.exchange == "binance":
-        #     self.download_binance_data()
-        # elif self.exchange == "bybit":
-        #     self.download_bybit_data()  # 將來可以實現 Bybit 數據下載邏輯
-        # else:
-        #     raise ValueError(f"Unsupported exchange: {self.exchange}")
+        if self.exchange == "binance":
+            self.download_binance_data()
+        elif self.exchange == "bybit":
+            self.download_bybit_data()
+        else:
+            raise ValueError(f"Unsupported exchange: {self.exchange}")
         
         return self.process_data()
 
 
 # 使用示例：
 symbol = "BTCUSDT"
-interval = "1s"  # 可以改為 "1m", "5m", "1h", "1d" 等
-start_date = "2017-08-17"
-end_date = "2024-12-23"
+interval = "1d"  # 可以改為 "1m", "5m", "1h", "1d" 等
+start_date = "2021-03-31"
+end_date = "2024-12-05"
 data_folder = "../dataset/binance"
 data_type = "spot"
 exchange = "binance"
