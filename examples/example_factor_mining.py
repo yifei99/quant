@@ -88,19 +88,19 @@ def main():
     except Exception as e:
         logger.error(f"Failed to merge USDT issuance data: {e}")
         return
-    logger.info(f"USDT Issuance Statistics: {data['USDT_issuance'].describe()}")
+    # logger.info(f"USDT Issuance Statistics: {data['USDT_issuance'].describe()}")
     # 初始化因子引擎并注册因子
     factor_engine = FactorEngine()
-    usdt_factor = USDTIssuance2Factor(name='usdt_issuance', upper_threshold=1000000000, lower_threshold=-1000000000)
+    usdt_factor = USDTIssuance2Factor(name='usdt_issuance', upper_threshold=700000000, lower_threshold=-900000000)
     factor_engine.register_factor(usdt_factor)
-    logger.info(f"Generated factor: {usdt_factor.calculate(data).head()}")
+    logger.info(f"Generated factor: {usdt_factor.calculate(data).head(10)}")
 
     # 初始化策略，基于因子的策略
     strategy = FactorBasedStrategy(factors=[usdt_factor])
 
 
     # 初始化回测引擎和绩效评估器
-    engine = BacktestEngine(initial_capital=100000.0, commission=0.001)
+    engine = BacktestEngine(initial_capital=10000.0, commission=0.001, slippage=0.001)
     evaluator = PerformanceEvaluator()
 
     # 执行初始回测
@@ -132,6 +132,8 @@ def main():
     except Exception as e:
         logger.error(f"Performance evaluation failed: {e}")
 
+    # 保存結果
+    # portfolio.to_csv('backtest_initial_results.csv')
     # 初始化優化器
     optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
 
