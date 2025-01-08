@@ -160,7 +160,12 @@ def main():
     logger.info("Optimization completed")
 
     # 找到最優閾值組合
-    optimal_params, optimal_sharpe, optimal_metrics = optimizer.find_optimal_thresholds(optimization_results)
+    optimal_params, optimal_sharpe, optimal_metrics, portfolio_optimal = optimizer.find_optimal_thresholds(
+        results=optimization_results,
+        data=data,
+        factor_class=USDTIssuance2Factor,
+        strategy_class=FactorBasedStrategy
+    )
     logger.info(f"Optimal Parameters: {optimal_params}")
     logger.info(f"Optimal Sharpe Ratio: {optimal_sharpe:.4f}")
 
@@ -176,19 +181,7 @@ def main():
     results_df.to_csv('optimization_results.csv', index=False)
     logger.info("Optimization results saved to 'optimization_results.csv'.")
 
-    # 使用最優閾值重新運行回測
-    logger.info("Running backtest with optimal thresholds...")
-    optimal_factor = USDTIssuance2Factor(
-        name='usdt_issuance',
-        upper_threshold=optimal_params['upper_threshold'],
-        lower_threshold=optimal_params['lower_threshold']
-    )
-    factor_engine_optimal = FactorEngine()
-    factor_engine_optimal.register_factor(optimal_factor)
-
-    optimal_strategy = FactorBasedStrategy(factors=[optimal_factor])
-
-    portfolio_optimal = engine.run_backtest(data, optimal_strategy, factor_engine=factor_engine_optimal)
+    # 直接使用返回的 portfolio_optimal 计算和保存结果
     print("\nPortfolio Performance with Optimal Threshold:")
     print(portfolio_optimal.head())
 
@@ -202,16 +195,9 @@ def main():
             print(f"{key}: {value:.2f}")
 
     # 保存結果
-    # portfolio.to_csv('backtest_initial_results.csv')
     portfolio_optimal.to_csv('backtest_optimal_results.csv')
     logger.info("Backtest results saved to 'backtest_optimal_results.csv'.")
 
-    # with open('performance_metrics_initial.txt', 'w') as f:
-    #     for key, value in metrics.items():
-    #         if 'Return' in key or 'Drawdown' in key:
-    #             f.write(f"{key}: {value * 100:.2f}%\n")
-    #         else:
-    #             f.write(f"{key}: {value:.2f}\n")
     with open('performance_metrics_optimal.txt', 'w') as f:
         # 写入最优阈值信息
         f.write(f"Optimal Threshold: {optimal_params}\n")

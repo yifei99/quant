@@ -35,8 +35,13 @@ class StrategyOptimizer:
         # 定义策略
         strategy = strategy_class(factors=[factor])
 
-        # 运行回测
-        portfolio = self.engine.run_backtest(data, strategy, factor_engine=factor_engine)
+        # 运行回测（优化过程中不生成图表）
+        portfolio = self.engine.run_backtest(
+            data=data, 
+            strategy=strategy, 
+            factor_engine=factor_engine,
+            plot=False  # 优化过程中不生成图表
+        )
 
         # 评估绩效
         metrics = self.evaluator.calculate_performance_metrics(portfolio)
@@ -118,19 +123,37 @@ class StrategyOptimizer:
 
         return results
 
-    def find_optimal_thresholds(self, results: dict) -> tuple:
+    def find_optimal_thresholds(self, results: dict, data: pd.DataFrame, 
+                              factor_class: BaseFactor, strategy_class: BaseStrategy) -> tuple:
         """
         从优化结果中找到夏普比率最高的阈值组合。
 
         参数:
             results (dict): 每个阈值组合对应的结果字典
+            data (pd.DataFrame): 用于最终回测的数据
+            factor_class (BaseFactor): 因子类
+            strategy_class (BaseStrategy): 策略类
 
         返回:
-            tuple: (最优参数字典, 最优夏普比率, 完整性能指标)
+            tuple: (最优参数字典, 最优夏普比率, 完整性能指标, 最优参数的回测结果)
         """
         optimal_combination = max(results.items(), key=lambda x: x[1]['sharpe_ratio'])
         optimal_params = optimal_combination[1]['params']
         optimal_sharpe = optimal_combination[1]['sharpe_ratio']
         optimal_metrics = optimal_combination[1]['metrics']
         
-        return optimal_params, optimal_sharpe, optimal_metrics
+        # 使用最优参数运行一次回测并生成图表
+        factor = factor_class(name='usdt_issuance', **optimal_params)
+        factor_engine = FactorEngine()
+        factor_engine.register_factor(factor)
+        strategy = strategy_class(factors=[factor])
+        
+        # 最终回测生成图表
+        portfolio_optimal = self.engine.run_backtest(
+            data=data, 
+            strategy=strategy, 
+            factor_engine=factor_engine,
+            plot=True  # 为最优参数生成图表
+        )
+        
+        return optimal_params, optimal_sharpe, optimal_metrics, portfolio_optimal

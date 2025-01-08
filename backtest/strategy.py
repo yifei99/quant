@@ -19,7 +19,8 @@ class BaseStrategy(ABC):
             data (pd.DataFrame): 包含价格数据和因子数据的DataFrame。
 
         返回:
-            pd.DataFrame: 包含交易信号的DataFrame。
+            pd.DataFrame: 包含信号的DataFrame
+            signal: 1.0（应该持有多头）、-1.0（应该持有空头）、0.0（应该空仓）
         """
         pass
 
@@ -44,18 +45,17 @@ class FactorBasedStrategy(BaseStrategy):
 
     def generate_signals(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        生成交易信号，基于多个因子的综合信号。
+        生成交易信号。
 
         参数:
             data (pd.DataFrame): 包含价格数据和因子数据的DataFrame。
 
         返回:
-            pd.DataFrame: 包含信号的DataFrame，信号列为1（买入）、-1（卖出）、0（持有）。
+            pd.DataFrame: 包含信号的DataFrame
+            signal: 1.0（应该持有多头）、-1.0（应该持有空头）、0.0（应该空仓）
         """
         signals = pd.DataFrame(index=data.index)
         signals['signal'] = 0.0
-
-
 
         # 合并因子信号
         for factor in self.factors:
@@ -63,29 +63,12 @@ class FactorBasedStrategy(BaseStrategy):
                 raise ValueError(f"DataFrame中缺少因子'{factor.name}'。")
 
             factor_signal = data[factor.name]
-
-            # # 可选：对因子信号进行归一化
-            # if self.normalize_factors:
-            #     factor_signal = (factor_signal - factor_signal.mean()) / factor_signal.std()
-
-            # 考虑因子的方向性
             signals['signal'] += factor_signal
 
-        # # 调试信息：输出综合信号的统计数据
-        # print("综合信号统计数据:")
-        # print(signals['signal'].describe())
-
-        # 根据综合信号生成买卖信号
-        signals['signal'] = signals['signal'].apply(lambda x: 1.0 if x > 0 else (-1.0 if x < 0 else 0.0))
-
-        # 生成交易订单
-        signals['positions'] = signals['signal'].diff()
-
-        # # 调试信息：输出信号和交易位置的分布
-        # print(self.factors)
-        # print("信号分布:")
-        # print(signals['signal'].value_counts())
-        # print("交易位置分布:")
-        # print(signals['positions'].value_counts())
+        # 根据因子值生成信号
+        signals['signal'] = signals['signal'].apply(
+            lambda x: 1 if x > 0 else (-1 if x < 0 else 0)
+        )
+        # print(signals.head(10))
 
         return signals
