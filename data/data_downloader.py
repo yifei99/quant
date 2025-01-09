@@ -152,9 +152,9 @@ class DataDownloader:
 
 # 使用示例：
 symbol = "BTCUSDT"
-interval = "1d"  # 可以改為 "1m", "5m", "1h", "1d" 等
-start_date = "2021-03-31"
-end_date = "2024-12-05"
+interval = "1h"  # 可以改為 "1m", "5m", "1h", "1d" 等
+start_date = "2023-08-10"
+end_date = "2025-1-09"
 data_folder = "../dataset/binance"
 data_type = "spot"
 exchange = "binance"

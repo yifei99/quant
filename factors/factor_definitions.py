@@ -26,76 +26,71 @@ class BaseFactor(ABC):
     def __repr__(self):
         return f"{self.__class__.__name__}(name='{self.name}')"
     
-class USDTIssuanceFactor(BaseFactor):
+class TwoThresholdFactor(BaseFactor):
     """
-    USDT Issuance Factor:
-    Generates buy signals when USDT issuance exceeds upper threshold;
-    Generates sell signals when USDT issuance falls below lower threshold.
-    """
-    def __init__(self, name='usdt_issuance', threshold=1000000):
-        """
-        Args:
-            name (str): Factor name.
-            threshold (float): Signal trigger threshold.
-        """
-        super().__init__(name)
-        self.threshold = threshold
-
-    def calculate(self, data: pd.DataFrame) -> pd.Series:
-        """
-        Calculate USDT issuance factor.
-
-        Args:
-            data (pd.DataFrame): DataFrame containing 'USDT_issuance' column.
-
-        Returns:
-            pd.Series: Factor signals, 1 for buy, -1 for sell, 0 for hold.
-        """
-        if 'USDT_issuance' not in data.columns:
-            raise ValueError("DataFrame must contain 'USDT_issuance' column.")
-        
-        factor = pd.Series(0, index=data.index)
-        factor[data['USDT_issuance'] > self.threshold] = 1
-        factor[data['USDT_issuance'] < self.threshold] = -1
-
-        return factor.rename(self.name)
-    
-class USDTIssuance2Factor(BaseFactor):
-    """
-    USDT Issuance Factor:
-    Generates buy signals when USDT issuance exceeds upper threshold;
-    Generates sell signals when USDT issuance falls below lower threshold.
+    Generic threshold-based factor:
+    Generates buy signals when value exceeds upper threshold;
+    Generates sell signals when value falls below lower threshold.
     """
     def __init__(self, 
-                 name='usdt_issuance', 
-                 upper_threshold=10000000,  # Upper threshold
-                 lower_threshold=1000000):  # Lower threshold
+                 name: str,
+                 column_name: str,
+                 upper_threshold: float,
+                 lower_threshold: float):
         """
         Args:
             name (str): Factor name
+            column_name (str): Name of the column to monitor in data
             upper_threshold (float): Upper threshold for buy signals
             lower_threshold (float): Lower threshold for sell signals
         """
         super().__init__(name)
+        self.column_name = column_name
         self.upper_threshold = upper_threshold
         self.lower_threshold = lower_threshold
 
     def calculate(self, data: pd.DataFrame) -> pd.Series:
         """
-        Calculate USDT issuance factor.
+        Calculate threshold-based factor.
 
         Args:
-            data (pd.DataFrame): DataFrame containing 'USDT_issuance' column
+            data (pd.DataFrame): DataFrame containing the monitored column
 
         Returns:
             pd.Series: Factor signals, 1 for buy, -1 for sell, 0 for hold
         """
-        if 'USDT_issuance' not in data.columns:
-            raise ValueError("DataFrame must contain 'USDT_issuance' column")
+        if self.column_name not in data.columns:
+            raise ValueError(f"DataFrame must contain '{self.column_name}' column")
         
         factor = pd.Series(0, index=data.index)
-        
-        factor[data['USDT_issuance'] > self.upper_threshold] = 1
-        factor[data['USDT_issuance'] < self.lower_threshold] = -1
+        factor[data[self.column_name] > self.upper_threshold] = 1
+        factor[data[self.column_name] < self.lower_threshold] = -1
 
         return factor.rename(self.name)
+
+
+# 使用通用阈值因子类创建具体因子
+class USDTIssuance2Factor(TwoThresholdFactor):
+    def __init__(self, 
+                 name='usdt_issuance', 
+                 upper_threshold=10000000,
+                 lower_threshold=1000000):
+        super().__init__(
+            name=name,
+            column_name='USDT_issuance',
+            upper_threshold=upper_threshold,
+            lower_threshold=lower_threshold
+        )
+
+
+class Liq2Factor(TwoThresholdFactor):
+    def __init__(self, 
+                 name='liq',
+                 upper_threshold=2,
+                 lower_threshold=-2):
+        super().__init__(
+            name=name,
+            column_name='Liq',
+            upper_threshold=upper_threshold,
+            lower_threshold=lower_threshold
+        )

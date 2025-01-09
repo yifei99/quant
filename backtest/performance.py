@@ -267,45 +267,122 @@ class PerformanceEvaluator:
         
         # Mark trade points
         holdings_changes = portfolio['holdings'].diff()
-        buy_dates, buy_prices = [], []
-        sell_dates, sell_prices = [], []
+        
+        # 为不同类型的交易准备数据
+        open_long_dates, open_long_prices = [], []
+        open_short_dates, open_short_prices = [], []
+        close_long_dates, close_long_prices = [], []
+        close_short_dates, close_short_prices = [], []
+        switch_long_dates, switch_long_prices = [], []
+        switch_short_dates, switch_short_prices = [], []
         
         for i in range(len(portfolio)):
             if i == 0:
                 continue
-            
+                
             change = holdings_changes.iloc[i]
             if change != 0:
                 date = portfolio.iloc[i]['Date'].strftime("%Y-%m-%d")
                 price = data.iloc[i]['close']
+                prev_holdings = portfolio.iloc[i-1]['holdings']
+                curr_holdings = portfolio.iloc[i]['holdings']
                 
-                if change > 0:  # Buy point
-                    buy_dates.append(date)
-                    buy_prices.append(price)
-                else:  # Sell point
-                    sell_dates.append(date)
-                    sell_prices.append(price)
+                if prev_holdings == 0:  # 开仓
+                    if curr_holdings > 0:
+                        open_long_dates.append(date)
+                        open_long_prices.append(price)
+                    else:
+                        open_short_dates.append(date)
+                        open_short_prices.append(price)
+                elif curr_holdings == 0:  # 平仓
+                    if prev_holdings > 0:
+                        close_long_dates.append(date)
+                        close_long_prices.append(price)
+                    else:
+                        close_short_dates.append(date)
+                        close_short_prices.append(price)
+                else:  # 转换仓位
+                    if curr_holdings > 0:
+                        switch_long_dates.append(date)
+                        switch_long_prices.append(price)
+                    else:
+                        switch_short_dates.append(date)
+                        switch_short_prices.append(price)
         
-        # Add trade markers
-        scatter_buy.add_xaxis(buy_dates)
-        scatter_buy.add_yaxis(
-            series_name="Buy",
-            y_axis=buy_prices,
+        # Add trade markers for each type
+        scatter_open_long = Scatter()
+        scatter_open_long.add_xaxis(open_long_dates)
+        scatter_open_long.add_yaxis(
+            series_name="Open Long",
+            y_axis=open_long_prices,
             symbol_size=10,
             label_opts=opts.LabelOpts(is_show=False),
             symbol="triangle",
             itemstyle_opts=opts.ItemStyleOpts(color="red")
         )
         
-        scatter_sell.add_xaxis(sell_dates)
-        scatter_sell.add_yaxis(
-            series_name="Sell",
-            y_axis=sell_prices,
+        scatter_open_short = Scatter()
+        scatter_open_short.add_xaxis(open_short_dates)
+        scatter_open_short.add_yaxis(
+            series_name="Open Short",
+            y_axis=open_short_prices,
+            symbol_size=10,
+            label_opts=opts.LabelOpts(is_show=False),
+            symbol="triangle-down",
+            itemstyle_opts=opts.ItemStyleOpts(color="blue")
+        )
+        
+        scatter_close_long = Scatter()
+        scatter_close_long.add_xaxis(close_long_dates)
+        scatter_close_long.add_yaxis(
+            series_name="Close Long",
+            y_axis=close_long_prices,
             symbol_size=10,
             label_opts=opts.LabelOpts(is_show=False),
             symbol="triangle-down",
             itemstyle_opts=opts.ItemStyleOpts(color="black")
         )
+        
+        scatter_close_short = Scatter()
+        scatter_close_short.add_xaxis(close_short_dates)
+        scatter_close_short.add_yaxis(
+            series_name="Close Short",
+            y_axis=close_short_prices,
+            symbol_size=10,
+            label_opts=opts.LabelOpts(is_show=False),
+            symbol="triangle",
+            itemstyle_opts=opts.ItemStyleOpts(color="green")
+        )
+        
+        scatter_switch_long = Scatter()
+        scatter_switch_long.add_xaxis(switch_long_dates)
+        scatter_switch_long.add_yaxis(
+            series_name="Switch to Long",
+            y_axis=switch_long_prices,
+            symbol_size=10,
+            label_opts=opts.LabelOpts(is_show=False),
+            symbol="triangle",
+            itemstyle_opts=opts.ItemStyleOpts(color="purple")
+        )
+        
+        scatter_switch_short = Scatter()
+        scatter_switch_short.add_xaxis(switch_short_dates)
+        scatter_switch_short.add_yaxis(
+            series_name="Switch to Short",
+            y_axis=switch_short_prices,
+            symbol_size=10,
+            label_opts=opts.LabelOpts(is_show=False),
+            symbol="triangle-down",
+            itemstyle_opts=opts.ItemStyleOpts(color="orange")
+        )
+        
+        # Overlap all scatter plots with price chart
+        price_chart.overlap(scatter_open_long)
+        price_chart.overlap(scatter_open_short)
+        price_chart.overlap(scatter_close_long)
+        price_chart.overlap(scatter_close_short)
+        price_chart.overlap(scatter_switch_long)
+        price_chart.overlap(scatter_switch_short)
         
         # Configure price chart options
         price_chart.set_global_opts(
@@ -390,15 +467,31 @@ class PerformanceEvaluator:
             if change != 0:  # If there's a change in holdings
                 price = data.iloc[i]['close']
                 date = portfolio.iloc[i]['Date']
+                prev_holdings = portfolio.iloc[i-1]['holdings']
+                curr_holdings = portfolio.iloc[i]['holdings']
                 
-                if change > 0:  # Buy point
-                    ax2.scatter(date, price, color='red', 
-                              marker='^', s=100, 
-                              label='Buy' if 'Buy' not in ax2.get_legend_handles_labels()[1] else "")
-                else:  # Sell point
-                    ax2.scatter(date, price, color='black', 
-                              marker='v', s=100, 
-                              label='Sell' if 'Sell' not in ax2.get_legend_handles_labels()[1] else "")
+                # 区分不同类型的交易
+                if prev_holdings == 0:  # 开仓
+                    if curr_holdings > 0:
+                        ax2.scatter(date, price, color='red', marker='^', s=100,
+                                  label='Open Long' if 'Open Long' not in ax2.get_legend_handles_labels()[1] else "")
+                    else:
+                        ax2.scatter(date, price, color='blue', marker='v', s=100,
+                                  label='Open Short' if 'Open Short' not in ax2.get_legend_handles_labels()[1] else "")
+                elif curr_holdings == 0:  # 平仓
+                    if prev_holdings > 0:
+                        ax2.scatter(date, price, color='black', marker='v', s=100,
+                                  label='Close Long' if 'Close Long' not in ax2.get_legend_handles_labels()[1] else "")
+                    else:
+                        ax2.scatter(date, price, color='green', marker='^', s=100,
+                                  label='Close Short' if 'Close Short' not in ax2.get_legend_handles_labels()[1] else "")
+                else:  # 转换仓位
+                    if curr_holdings > 0:
+                        ax2.scatter(date, price, color='purple', marker='^', s=100,
+                                  label='Switch to Long' if 'Switch to Long' not in ax2.get_legend_handles_labels()[1] else "")
+                    else:
+                        ax2.scatter(date, price, color='orange', marker='v', s=100,
+                                  label='Switch to Short' if 'Switch to Short' not in ax2.get_legend_handles_labels()[1] else "")
         
         ax2.legend()
         

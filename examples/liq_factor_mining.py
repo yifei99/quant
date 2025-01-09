@@ -8,21 +8,40 @@ import multiprocessing
 from backtest.backtest_engine import BacktestEngine
 from backtest.strategy import FactorBasedStrategy
 from backtest.performance import PerformanceEvaluator
-from factors.factor_definitions import USDTIssuance2Factor
+from factors.factor_definitions import Liq2Factor
 from factors.factor_engine import FactorEngine
 from factors.optimizer import StrategyOptimizer
 from data.data_loader import DataLoader
 import numpy as np
 
 
-def load_usdt_issuance_data(usdt_file_path):
-    """Load USDT issuance data and calculate daily issuance."""
-    usdt_data = pd.read_csv(usdt_file_path)
-    usdt_data['Date'] = pd.to_datetime(usdt_data['Timestamp'], unit='s')
-    usdt_data = usdt_data.sort_values('Date')
-    usdt_data['USDT_issuance'] = usdt_data['USDT'].diff().fillna(0)
+
+
+def load_liq_data(depth_file_path):
+    """
+    加载订单簿深度数据并计算流动性因子
     
-    return usdt_data[['Date', 'USDT_issuance']]
+    Args:
+        depth_file_path (str): 订单簿深度数据文件路径
+        
+    Returns:
+        pd.DataFrame: 包含 Date 和 liq 值的 DataFrame
+    """
+    # 加载深度数据
+    depth_data = pd.read_csv(depth_file_path)
+    depth_data['Date'] = pd.to_datetime(depth_data['Date'])
+    depth_data = depth_data.sort_values('Date')
+    
+    # 计算流动性因子
+    # 当 Bids >= Asks 时，liq = Bids/Asks
+    # 当 Bids < Asks 时，liq = -(Asks/Bids)
+    depth_data['Liq'] = np.where(
+        depth_data['Bids'] >= depth_data['Asks'],
+        depth_data['Bids'] / depth_data['Asks'],
+        -(depth_data['Asks'] / depth_data['Bids'])
+    )
+    
+    return depth_data[['Date', 'Liq']]
 
 
 def main():
@@ -50,9 +69,9 @@ def main():
         data = data_loader.load_data(
             exchange="binance",
             symbol="BTCUSDT",
-            interval="1d",
-            start_date="2021-03-31",
-            end_date="2024-12-05",
+            interval="1h",
+            start_date="2023-08-10",
+            end_date="2025-1-09",
             data_type="spot"
         )
         logger.info("Market data loaded successfully")
@@ -62,26 +81,38 @@ def main():
 
     # 2. Load and process factor data
     try:
-        usdt_file_path = "../dataset/stables/stablecoins.csv"
-        usdt_data = load_usdt_issuance_data(usdt_file_path)
+        liq_file_path = "../dataset/orderbook_depth/btc_1_depth.csv"
+        liq_data = load_liq_data(liq_file_path)
         logger.info("Factor data loaded successfully")
+        print(liq_data['Liq'].describe())
         
-        data['Date'] = pd.to_datetime(data['timestamp_start'], unit='ms')
-        data = pd.merge(data, usdt_data, on='Date', how='left')
+        # 将市场数据的时间戳转换为datetime格式
+        data['timestamp_start'] = data['timestamp_start'].astype(str).str[:10].astype(int)
+        data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
+        # 合并数据，使用 Date 作为键
+        data = pd.merge(data, liq_data, on='Date', how='left')
+        # 删除liq为NaN的行
+        original_len = len(data)
+        data = data.dropna(subset=['Liq'])
+        
         logger.info("Data merged successfully")
     except Exception as e:
         logger.error(f"Failed to process factor data: {e}")
         return
-
+    
     # 3. Initialize components
     factor_engine = FactorEngine()
-    usdt_factor = USDTIssuance2Factor(
-        name='usdt_issuance', 
-        upper_threshold=700000000, 
-        lower_threshold=-300000000
+    liq_factor = Liq2Factor(
+        name='liq', 
+        upper_threshold=1.2, 
+        lower_threshold=-1.3
     )
-    factor_engine.register_factor(usdt_factor)
-    strategy = FactorBasedStrategy(factors=[usdt_factor])
+    factor_engine.register_factor(liq_factor)
+    
+    # 添加因子信号调试信息
+    factor_signals = factor_engine.calculate_factors(data)
+    
+    strategy = FactorBasedStrategy(factors=[liq_factor])
     engine = BacktestEngine(
         initial_capital=10000.0,
         commission=0.001,
@@ -99,8 +130,8 @@ def main():
         # 4.2 Parameter optimization
         optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
         threshold_params = {
-            'upper_threshold': np.round(np.arange(-4.8, 4.1, 0.1), 1).tolist(),
-            'lower_threshold': np.round(np.arange(-4.8, 4.1, 0.1), 1).tolist()
+            'upper_threshold': np.round(np.arange(-4.8, 4.1, 0.1), 2).tolist(),
+            'lower_threshold': np.round(np.arange(-4.8, 4.1, 0.1), 2).tolist()
         }
         max_workers = max(1, multiprocessing.cpu_count() - 1)
         
@@ -108,7 +139,7 @@ def main():
         optimization_results = optimizer.optimize_thresholds(
             data=data,
             threshold_params=threshold_params,
-            factor_class=USDTIssuance2Factor,
+            factor_class=Liq2Factor,
             strategy_class=FactorBasedStrategy,
             max_workers=max_workers
         )
@@ -118,14 +149,14 @@ def main():
             optimizer.find_optimal_thresholds(
                 results=optimization_results,
                 data=data,
-                factor_class=USDTIssuance2Factor,
+                factor_class=Liq2Factor,
                 strategy_class=FactorBasedStrategy
             )
         )
         logger.info(f"Optimization completed. Optimal parameters: {optimal_params}")
         
         # Create reports directory structure
-        factor_name = usdt_factor.name
+        factor_name = liq_factor.name
         reports_dir = "../reports"
         factor_dir = os.path.join(reports_dir, factor_name)
         
@@ -191,6 +222,7 @@ def main():
         
     except Exception as e:
         logger.error(f"Backtest/Optimization failed: {e}")
+        logger.error("Full error:", exc_info=True)  # 打印完整错误信息
         return
 
 
