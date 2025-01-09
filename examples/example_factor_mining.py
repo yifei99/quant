@@ -91,7 +91,7 @@ def main():
     # logger.info(f"USDT Issuance Statistics: {data['USDT_issuance'].describe()}")
     # 初始化因子引擎并注册因子
     factor_engine = FactorEngine()
-    usdt_factor = USDTIssuance2Factor(name='usdt_issuance', upper_threshold=700000000, lower_threshold=-900000000)
+    usdt_factor = USDTIssuance2Factor(name='usdt_issuance', upper_threshold=700000000, lower_threshold=-300000000)
     factor_engine.register_factor(usdt_factor)
     logger.info(f"Generated factor: {usdt_factor.calculate(data).head(10)}")
 
