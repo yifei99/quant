@@ -26,51 +26,54 @@ class PerformanceEvaluator:
             end_date = pd.to_datetime(portfolio['Date'].iloc[-1])
             num_years = (end_date - start_date).days / 365.25
             
-            if num_years > 0 and total_return > -1:  # 避免負值進行指數運算
-                annualized_return = (1 + total_return) ** (1 / num_years) - 1
-                return annualized_return
+            if num_years > 0:
+                if total_return > -1:  # 正常情况
+                    annualized_return = (1 + total_return) ** (1 / num_years) - 1
+                    return annualized_return
+                else:  # 处理极端亏损情况
+                    # 当亏损超过100%时，返回总亏损率
+                    return total_return / num_years
             
         return float('nan')  # 如果無法計算則返回 NaN
 
-    def calculate_sharpe_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.05) -> float:
+    def _calculate_portfolio_values(self, portfolio: pd.DataFrame) -> np.ndarray:
+        """计算每日投资组合市值"""
+        INITIAL_INVESTMENT = 10000
+        return np.where(
+            portfolio['holdings'] == 0,
+            portfolio['total'] + INITIAL_INVESTMENT,  # 无持仓
+            np.where(
+                portfolio['holdings'] > 0,
+                portfolio['holdings'] * portfolio['close'] - portfolio['cost_basis'] + portfolio['total'] + INITIAL_INVESTMENT,  # 多单
+                portfolio['holdings'] * portfolio['close'] + portfolio['cost_basis'] + portfolio['total'] + INITIAL_INVESTMENT  # 空单
+            )
+        )
+
+    def calculate_sharpe_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.05, periods_per_year=365) -> float:
         """
-        Calculate Sharpe Ratio using daily returns for crypto markets (365 trading days).
+        Calculate Sharpe Ratio.
         
         Args:
-            portfolio (pd.DataFrame): Portfolio data with 'total' column
-            risk_free_rate (float): Annual risk-free rate, defaults to 0.05 (5%)
-            
-        Returns:
-            float: Sharpe ratio or 0.0 if calculation fails
+            portfolio: Portfolio data
+            risk_free_rate: Annual risk-free rate
+            periods_per_year: Number of periods in a year (e.g., 365 for daily, 52 for weekly, 12 for monthly)
         """
         try:
-            # Calculate daily returns based on total portfolio value
-            daily_returns = portfolio['total'].diff() / 10000  # Normalize by initial investment
-            daily_returns = daily_returns.dropna()
+            daily_value = self._calculate_portfolio_values(portfolio)
+            daily_returns = pd.Series(daily_value).pct_change()
+            daily_returns.iloc[0] = 0
             
-            if len(daily_returns) < 2:  # Need at least 2 points for std calculation
-                return 0.0
-                
-            # Convert annual risk-free rate to daily (using 365 days for crypto markets)
-            daily_rf_rate = (1 + risk_free_rate) ** (1/365) - 1
+
             
-            # Calculate annualized metrics (using 365 days for crypto markets)
-            excess_returns = daily_returns - daily_rf_rate
-            annual_excess_return = excess_returns.mean() * 365
-            annual_volatility = daily_returns.std() * np.sqrt(365)
+           
+            annual_excess_return = daily_returns.mean() * periods_per_year - risk_free_rate
+            annual_volatility = daily_returns.std() * np.sqrt(periods_per_year)
             
-            # Check for valid volatility
             if annual_volatility == 0 or np.isnan(annual_volatility):
                 return 0.0
                 
-            # Calculate Sharpe ratio
             sharpe_ratio = annual_excess_return / annual_volatility
-            
-            # Validate result
-            if np.isinf(sharpe_ratio) or np.isnan(sharpe_ratio):
-                return 0.0
-                
-            return sharpe_ratio
+            return sharpe_ratio if not (np.isinf(sharpe_ratio) or np.isnan(sharpe_ratio)) else 0.0
             
         except Exception as e:
             logging.warning(f"Error calculating Sharpe ratio: {e}")
@@ -78,22 +81,26 @@ class PerformanceEvaluator:
 
     def calculate_max_drawdown(self, portfolio: pd.DataFrame) -> float:
         """
-        Calculate maximum drawdown from peak, using initial capital as base.
-        Initial capital is set to 10000.
+        Calculate maximum drawdown considering floating P&L.
         """
-        # Calculate returns relative to initial capital
-        returns = portfolio['total'] / 10000 - 1
-        
-        # Calculate running maximum
-        running_max = np.maximum.accumulate(returns)
-        
-        # Calculate drawdowns
-        drawdowns = returns - running_max
-        
-        # Get maximum drawdown
-        max_drawdown = drawdowns.min()
-        
-        return max_drawdown
+        try:
+            # 计算包含浮动盈亏的每日市值
+            daily_value = self._calculate_portfolio_values(portfolio)
+            
+            # 计算历史最高值
+            running_max = np.maximum.accumulate(daily_value)
+            
+            # 计算相对于历史最高值的回撤
+            drawdowns = (daily_value - running_max) / running_max
+            
+            # 获取最大回撤
+            max_drawdown = drawdowns.min()
+            
+            return max_drawdown if not np.isnan(max_drawdown) else 0.0
+            
+        except Exception as e:
+            logging.warning(f"Error calculating max drawdown: {e}")
+            return 0.0
 
     def calculate_total_return(self, portfolio: pd.DataFrame) -> float:
         """
@@ -106,36 +113,34 @@ class PerformanceEvaluator:
         total_return = final_value / INITIAL_INVESTMENT  # 總回報率
         return total_return
 
-    def calculate_sortino_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.05, target_return=0.0) -> float:
+    def calculate_sortino_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.05, periods_per_year=365) -> float:
         """
-        Calculate Sortino Ratio using daily returns.
-        
-        Parameters:
-            portfolio (pd.DataFrame): Portfolio data
-            risk_free_rate (float): Annual risk-free rate
-            target_return (float): Minimum acceptable return
+        Calculate Sortino Ratio using downside deviation.
         """
-        # Calculate daily returns
-        daily_returns = portfolio['total'].diff() / 10000
-        daily_returns = daily_returns.dropna()
-        
-        if len(daily_returns) > 1:
-            # Calculate excess returns
-            excess_returns = daily_returns - risk_free_rate / 365
+        try:
+            daily_value = self._calculate_portfolio_values(portfolio)
+            daily_returns = pd.Series(daily_value).pct_change()
+            daily_returns.iloc[0] = 0
             
-            # Calculate downside returns
-            downside_returns = excess_returns[excess_returns < target_return]
+            # 转换年化无风险利率为对应周期的利率
+            annual_excess_return = daily_returns.mean() * periods_per_year - risk_free_rate
             
-            if len(downside_returns) > 0:
-                # Calculate downside deviation
-                downside_std = np.sqrt(np.mean(downside_returns ** 2))
+            # 计算下行波动率（只考虑负收益）
+            downside_returns = daily_returns[daily_returns < 0]
+            if len(downside_returns) == 0:
+                return 0.0
                 
-                if downside_std != 0:
-                    # Calculate Sortino ratio
-                    sortino_ratio = np.sqrt(365) * excess_returns.mean() / downside_std
-                    return sortino_ratio
+            downside_std = np.sqrt(np.mean(downside_returns ** 2)) * np.sqrt(periods_per_year)
+            
+            if downside_std == 0 or np.isnan(downside_std):
+                return 0.0
                 
-        return 0.0
+            sortino_ratio = annual_excess_return / downside_std
+            return sortino_ratio if not (np.isinf(sortino_ratio) or np.isnan(sortino_ratio)) else 0.0
+            
+        except Exception as e:
+            logging.warning(f"Error calculating Sortino ratio: {e}")
+            return 0.0
 
     def calculate_trade_count(self, portfolio: pd.DataFrame) -> int:
         """
@@ -145,30 +150,23 @@ class PerformanceEvaluator:
         position_changes = portfolio['holdings'].diff()
         
         # Count actual trades (when holdings actually change)
-        trade_count = len(position_changes[position_changes != 0])
+        trade_count = len(position_changes[position_changes != 0])-1
         
         return trade_count
 
-    def calculate_performance_metrics(self, portfolio: pd.DataFrame) -> dict:
+    def calculate_performance_metrics(self, portfolio: pd.DataFrame, periods_per_year=365) -> dict:
         """
         Calculate all performance metrics.
+        
+        Args:
+            portfolio: Portfolio data
+            periods_per_year: Number of periods in a year (e.g., 365 for daily, 52 for weekly, 12 for monthly)
         """
-        # Ensure portfolio has data
-        if len(portfolio) == 0:
-            return {
-                'Total Return': 0.0,
-                'Annualized Return': 0.0,
-                'Sharpe Ratio': 0.0,
-                'Sortino Ratio': 0.0,
-                'Max Drawdown': 0.0,
-                'Number of Trades': 0
-            }
-
         metrics = {
             'Total Return': self.calculate_total_return(portfolio),
             'Annualized Return': self.calculate_annualized_return(portfolio),
-            'Sharpe Ratio': self.calculate_sharpe_ratio(portfolio),
-            'Sortino Ratio': self.calculate_sortino_ratio(portfolio),
+            'Sharpe Ratio': self.calculate_sharpe_ratio(portfolio, periods_per_year=periods_per_year),
+            'Sortino Ratio': self.calculate_sortino_ratio(portfolio, periods_per_year=periods_per_year),
             'Max Drawdown': self.calculate_max_drawdown(portfolio),
             'Number of Trades': self.calculate_trade_count(portfolio)
         }
@@ -199,9 +197,20 @@ class PerformanceEvaluator:
         from pyecharts import options as opts
         from pyecharts.charts import Grid, Line, Scatter
         
-        # Calculate return rate series
+        # 计算每日总市值（包括浮动盈亏）
         INITIAL_INVESTMENT = 10000
-        portfolio['return_rate'] = portfolio['total'] / INITIAL_INVESTMENT
+        daily_value = np.where(
+            portfolio['holdings'] == 0,
+            portfolio['total'] + INITIAL_INVESTMENT,  # 无持仓
+            np.where(
+                portfolio['holdings'] > 0,
+                portfolio['holdings'] * portfolio['close'] - portfolio['cost_basis'] + portfolio['total'] + INITIAL_INVESTMENT,  # 多单
+                portfolio['holdings'] * portfolio['close'] + portfolio['cost_basis'] + portfolio['total'] + INITIAL_INVESTMENT  # 空单
+            )
+        )
+        
+        # 计算累计收益率
+        portfolio['return_rate'] = (daily_value - INITIAL_INVESTMENT) / INITIAL_INVESTMENT
         
         # Create charts
         returns_chart = Line()
@@ -427,9 +436,20 @@ class PerformanceEvaluator:
         fig = plt.figure(figsize=(15, 10))
         gs = GridSpec(2, 1, height_ratios=[2, 1])
         
-        # Calculate return rate series
+        # 计算每日总市值（包括浮动盈亏）
         INITIAL_INVESTMENT = 10000
-        portfolio['return_rate'] = portfolio['total'] / INITIAL_INVESTMENT
+        daily_value = np.where(
+            portfolio['holdings'] == 0,
+            portfolio['total'] + INITIAL_INVESTMENT,  # 无持仓
+            np.where(
+                portfolio['holdings'] > 0,
+                portfolio['holdings'] * portfolio['close'] - portfolio['cost_basis'] + portfolio['total'] + INITIAL_INVESTMENT,  # 多单
+                portfolio['holdings'] * portfolio['close'] + portfolio['cost_basis'] + portfolio['total'] + INITIAL_INVESTMENT  # 空单
+            )
+        )
+        
+        # 计算累计收益率
+        portfolio['return_rate'] = (daily_value - INITIAL_INVESTMENT) / INITIAL_INVESTMENT
         
         # Upper plot: Cumulative returns
         ax1 = fig.add_subplot(gs[0])

@@ -13,7 +13,7 @@ from factors.factor_engine import FactorEngine
 from factors.optimizer import StrategyOptimizer
 from data.data_loader import DataLoader
 import numpy as np
-from backtest.trading_logic import HoldTradingLogic
+
 
 
 
@@ -32,17 +32,10 @@ def load_liq_data(depth_file_path):
     depth_data['Date'] = pd.to_datetime(depth_data['Date'])
     depth_data = depth_data.sort_values('Date')
     
-    # 计算流动性因子
-    # 当 Bids >= Asks 时，liq = Bids/Asks
-    # 当 Bids < Asks 时，liq = -(Asks/Bids)
-    depth_data['Liq'] = np.where(
-        depth_data['Bids'] >= depth_data['Asks'],
-        (depth_data['Bids'] / depth_data['Asks'])-1,
-        (-(depth_data['Asks'] / depth_data['Bids']))+1
-    )
-    
-    return depth_data[['Date', 'Liq']]
+ 
+    depth_data['Liq'] = depth_data['Difference']
 
+    return depth_data[['Date', 'Liq']]
 
 def main():
     """
@@ -84,103 +77,16 @@ def main():
         liq_file_path = "../dataset/orderbook_depth/btc_1_depth.csv"
         liq_data = load_liq_data(liq_file_path)
         logger.info("Factor data loaded successfully")
-
+        print(liq_data['Liq'].describe())
+        
         # 将市场数据的时间戳转换为datetime格式
         data['timestamp_start'] = data['timestamp_start'].astype(str).str[:10].astype(int)
         data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
         # 合并数据，使用 Date 作为键
         data = pd.merge(data, liq_data, on='Date', how='left')
+        # 删除liq为NaN的行
+        original_len = len(data)
         data = data.dropna(subset=['Liq'])
-
-        # 截取指定时间段的数据
-        start_date = '2024-7-01'  # 在这里修改起始日期
-        end_date = '2025-1-01'    # 在这里修改结束日期
-        data = data[
-            (data['Date'] >= pd.to_datetime(start_date)) & 
-            (data['Date'] <= pd.to_datetime(end_date))
-        ]
-        
-        # 显示筛选后的数据范围
-        filtered_date_range = {
-            '起始日期': data['Date'].min(),
-            '结束日期': data['Date'].max(),
-            '总天数': (data['Date'].max() - data['Date'].min()).days,
-            '数据点数量': len(data)
-        }
-        logger.info(f"筛选后数据范围信息: {filtered_date_range}")
-        print(data['Liq'].describe())
-        # # Plot price and liquidity factor
-        # try:
-        #     import matplotlib.pyplot as plt
-        #     from matplotlib.gridspec import GridSpec
-        #     import numpy as np
-        #     from matplotlib.dates import AutoDateLocator, DateFormatter
-            
-        #     plt.style.use('seaborn')
-        #     fig = plt.figure(figsize=(15, 10))
-        #     gs = GridSpec(2, 1, height_ratios=[2, 1], hspace=0.1)
-            
-        #     # Plot price trend
-        #     ax1 = plt.subplot(gs[0])
-        #     ax1.plot(data['Date'], data['close'], color='#1f77b4', label='BTC Price')
-        #     ax1.set_title('BTC Price and Liquidity Factor', pad=20)
-        #     ax1.set_xlabel('')
-        #     ax1.set_ylabel('Price (USDT)')
-        #     ax1.grid(True)
-        #     ax1.legend()
-            
-        #     # Format x-axis for price plot with auto locator
-        #     ax1.xaxis.set_major_locator(AutoDateLocator())
-        #     ax1.xaxis.set_major_formatter(DateFormatter('%Y-%m-%d %H:%M'))
-        #     plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right')
-            
-        #     # Plot liquidity factor with different colors
-        #     ax2 = plt.subplot(gs[1])
-            
-        #     # Calculate bar width (in days)
-        #     bar_width = 0.02
-            
-        #     # Plot values with different colors based on positive/negative
-        #     positive_mask = data['Liq'] >= 0
-        #     negative_mask = data['Liq'] < 0
-            
-        #     ax2.bar(data.loc[positive_mask, 'Date'], 
-        #            data.loc[positive_mask, 'Liq'],
-        #            width=bar_width,
-        #            color='green', alpha=0.6, label='Positive Liquidity')
-            
-        #     ax2.bar(data.loc[negative_mask, 'Date'], 
-        #            data.loc[negative_mask, 'Liq'],
-        #            width=bar_width,
-        #            color='red', alpha=0.6, label='Negative Liquidity')
-            
-        #     # Add zero line
-        #     ax2.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
-            
-        #     # Format x-axis for liquidity plot with auto locator
-        #     ax2.xaxis.set_major_locator(AutoDateLocator())
-        #     ax2.xaxis.set_major_formatter(DateFormatter('%Y-%m-%d %H:%M'))
-        #     plt.setp(ax2.xaxis.get_majorticklabels(), rotation=45, ha='right')
-            
-        #     # Set y-axis limits
-        #     max_liq = max(abs(data['Liq'].max()), abs(data['Liq'].min()))
-        #     ax2.set_ylim(-max_liq-0.5, max_liq+0.5)
-            
-        #     ax2.set_xlabel('Date')
-        #     ax2.set_ylabel('Liquidity Factor')
-        #     ax2.grid(True)
-        #     ax2.legend()
-            
-        #     # Adjust layout to prevent label cutoff
-        #     plt.tight_layout()
-            
-        #     # Save the figure
-        #     plt.savefig('../reports/price_and_liq.png', dpi=300, bbox_inches='tight')
-        #     plt.close()
-            
-        #     logger.info("Price and liquidity factor plot saved successfully")
-        # except Exception as e:
-        #     logger.error(f"Failed to create plot: {e}")
         
         logger.info("Data merged successfully")
     except Exception as e:
@@ -191,19 +97,19 @@ def main():
     factor_engine = FactorEngine()
     liq_factor = Liq2Factor(
         name='liq', 
-        upper_threshold=1.2, 
-        lower_threshold=-1.3
+        upper_threshold=1.1, 
+        lower_threshold=-0.5
     )
     factor_engine.register_factor(liq_factor)
     
-
+    # 添加因子信号调试信息
+    factor_signals = factor_engine.calculate_factors(data)
+    
     strategy = FactorBasedStrategy(factors=[liq_factor])
     engine = BacktestEngine(
         initial_capital=10000.0,
         commission=0.001,
-        slippage=0.001,
-        trading_logic=HoldTradingLogic(),
-        periods_per_year=365*24
+        slippage=0.001
     )
     evaluator = PerformanceEvaluator()
 
@@ -213,15 +119,12 @@ def main():
         # 4.1 Direct backtest
         portfolio = engine.run_backtest(data, strategy, factor_engine)
         logger.info("Initial backtest completed")
-        metrics =evaluator.calculate_performance_metrics(portfolio)
-        logger.info(f"Performance Metrics: {metrics}")
-
 
         # 4.2 Parameter optimization
         optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
         threshold_params = {
-            'upper_threshold': np.round(np.arange(-3.1, 1.6, 0.1), 2).tolist(),
-            'lower_threshold': np.round(np.arange(-3.1, 1.6, 0.1), 2).tolist()
+            'upper_threshold': np.round(np.arange(-178000000, 90700000, 1000000)).tolist(),
+            'lower_threshold': np.round(np.arange(-178000000, 90700000, 1000000)).tolist()
         }
         max_workers = max(1, multiprocessing.cpu_count() - 1)
         
@@ -243,7 +146,7 @@ def main():
                 strategy_class=FactorBasedStrategy
             )
         )
-        logger.info(f"Optimization completed. Optimal parameters: {optimal_params}, optimal_metrics: {optimal_metrics}")
+        logger.info(f"Optimization completed. Optimal parameters: {optimal_params}")
         
         # Create reports directory structure
         factor_name = liq_factor.name

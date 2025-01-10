@@ -253,7 +253,6 @@ BacktestEngine --> PerformanceEvaluator
     - **Formula:**
     
     $$
-    
     \text{Sharpe Ratio} = \frac{\text{Mean(Excess Daily Returns)}}{\text{Standard Deviation of Daily Returns}} \times \sqrt{365}
     $$
     
@@ -282,7 +281,6 @@ BacktestEngine --> PerformanceEvaluator
     - **Formula:**
     
     $$
-    
     \text{Max Drawdown} = \min(\text{Portfolio Returns} - \text{Running Maximum})
     $$
     
@@ -305,7 +303,6 @@ BacktestEngine --> PerformanceEvaluator
     - **Formula:**
     
     $$
-    
     \text{Cumulative Return at Time } t = \frac{\text{Portfolio Value at } t}{\text{Initial Investment}}
     $$
     

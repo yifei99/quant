@@ -12,7 +12,6 @@ from factors.factor_definitions import USDTIssuance2Factor
 from factors.factor_engine import FactorEngine
 from factors.optimizer import StrategyOptimizer
 from data.data_loader import DataLoader
-import numpy as np
 
 
 def load_usdt_issuance_data(usdt_file_path):
@@ -99,8 +98,8 @@ def main():
         # 4.2 Parameter optimization
         optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
         threshold_params = {
-            'upper_threshold': np.round(np.arange(-4.8, 4.1, 0.1), 1).tolist(),
-            'lower_threshold': np.round(np.arange(-4.8, 4.1, 0.1), 1).tolist()
+            'upper_threshold': range(-3200000000, 1500000000, 100000000),
+            'lower_threshold': range(-3200000000, 1500000000, 100000000)
         }
         max_workers = max(1, multiprocessing.cpu_count() - 1)
         

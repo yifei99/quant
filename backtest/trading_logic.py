@@ -6,7 +6,7 @@ class BaseTradingLogic(ABC):
     """
     Abstract base class for trading logic implementations.
     """
-    def __init__(self, commission: float, slippage: float, trade_amount: float = 10000):
+    def __init__(self, commission: float = 0.001, slippage: float = 0.001, trade_amount: float = 10000):
         self.commission = commission
         self.slippage = slippage
         self.trade_amount = trade_amount
@@ -92,17 +92,18 @@ class StandardTradingLogic(BaseTradingLogic):
         portfolio['total'] = 0.0
         portfolio['cost_basis'] = 0.0
         portfolio['signal'] = signals['signal']
+        portfolio['close'] = data['close']
         
         # Simulate trading
         for i in range(len(data)):
-            current_price = data.iloc[i]['close']
+            current_price = data.iloc[i]['close'] 
             signal = signals.iloc[i]['signal']
             
             if i == 0:
                 portfolio.iloc[i, portfolio.columns.get_loc('total')] = 0
                 continue
                 
-            # Copy previous day's state (except signal)
+            # Copy previous day's state (except signal and close)
             portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
             portfolio.iloc[i, portfolio.columns.get_loc('total')] = portfolio.iloc[i-1]['total']
             portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = portfolio.iloc[i-1]['cost_basis']
@@ -131,3 +132,66 @@ class StandardTradingLogic(BaseTradingLogic):
         portfolio['Date'] = data['Date']
         return portfolio
 
+class HoldTradingLogic(BaseTradingLogic):
+    """
+    Hold trading logic implementation with the following rules:
+    
+    No Position:
+    - Signal 1: Open long position
+    - Signal -1: Open short position
+    - Signal 0: No action
+    
+    Long Position:
+    - Signal 1: No action
+    - Signal -1: Close position
+    - Signal 0: No action
+    
+    Short Position:
+    - Signal 1: Close position
+    - Signal -1: No action
+    - Signal 0: No action
+    """
+    def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
+        # Initialize portfolio
+        portfolio = pd.DataFrame(index=data.index)
+        portfolio['holdings'] = 0.0
+        portfolio['total'] = 0.0
+        portfolio['cost_basis'] = 0.0
+        portfolio['signal'] = signals['signal']
+        portfolio['close'] = data['close']
+        
+        # Simulate trading
+        for i in range(len(data)):
+            current_price = data.iloc[i]['close'] 
+            signal = signals.iloc[i]['signal']
+            
+            if i == 0:
+                portfolio.iloc[i, portfolio.columns.get_loc('total')] = 0
+                continue
+                
+            # Copy previous day's state (except signal and close)
+            portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
+            portfolio.iloc[i, portfolio.columns.get_loc('total')] = portfolio.iloc[i-1]['total']
+            portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = portfolio.iloc[i-1]['cost_basis']
+
+            current_holdings = portfolio.iloc[i]['holdings']
+            
+            # Process signals based on current position
+            if current_holdings == 0:  # No position
+                if signal == 1:  # Open long
+                    self._open_long_position(portfolio, i, current_price)
+                elif signal == -1:  # Open short
+                    self._open_short_position(portfolio, i, current_price)
+                    
+            elif current_holdings > 0:  # Long position
+                if signal == -1:  # Close position
+                    self._close_long_position(portfolio, i, current_price)
+         
+                    
+            elif current_holdings < 0:  # Short position
+                if signal == 1:  # Close position
+                    self._close_short_position(portfolio, i, current_price)
+
+        
+        portfolio['Date'] = data['Date']
+        return portfolio
