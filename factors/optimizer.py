@@ -11,6 +11,7 @@ from factors.factor_definitions import BaseFactor
 from factors.factor_engine import FactorEngine
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Any
+from joblib import Parallel, delayed
 
 class StrategyOptimizer:
     def __init__(self, engine: BacktestEngine, evaluator: PerformanceEvaluator):
@@ -18,64 +19,14 @@ class StrategyOptimizer:
         self.evaluator = evaluator
         self.logger = logging.getLogger(__name__)
 
-    def _test_combination(self, 
-                         combination: tuple, 
-                         param_names: list, 
-                         data: pd.DataFrame,
-                         factor_class: BaseFactor,
-                         strategy_class: BaseStrategy) -> Dict[str, Any]:
-        """Helper method to test a single parameter combination"""
-        current_params = dict(zip(param_names, combination))
-        
-        # 定义因子
-        factor = factor_class(name='usdt_issuance', **current_params)
-        factor_engine = FactorEngine()
-        factor_engine.register_factor(factor)
-
-        # 定义策略
-        strategy = strategy_class(factors=[factor])
-
-        # 运行回测（优化过程中不生成图表）
-        portfolio = self.engine.run_backtest(
-            data=data, 
-            strategy=strategy, 
-            factor_engine=factor_engine,
-            plot=False  # 优化过程中不生成图表
-        )
-
-        # 评估绩效
-        metrics = self.evaluator.calculate_performance_metrics(portfolio)
-        sharpe_ratio = metrics.get('Sharpe Ratio', 0)
-        
-        return {
-            'combination': combination,
-            'params': current_params,
-            'sharpe_ratio': sharpe_ratio,
-            'metrics': metrics
-        }
 
     def optimize_thresholds(self, data: pd.DataFrame,
                           threshold_params: dict,
                           factor_class: BaseFactor,
                           strategy_class: BaseStrategy,
-                          max_workers: int = None) -> dict:
+                          n_jobs: int = -1) -> dict:
         """
-        优化多个因子阈值，使用多线程并行测试不同阈值组合。
-
-        参数:
-            data (pd.DataFrame): 包含价格数据和因子数据的DataFrame
-            threshold_params (dict): 要测试的阈值参数字典，格式为:
-                {
-                    'threshold1': [value1, value2, ...],
-                    'threshold2': [value1, value2, ...],
-                    ...
-                }
-            factor_class (BaseFactor): 因子类
-            strategy_class (BaseStrategy): 策略类
-            max_workers (int, optional): 最大线程数，默认为None（由系统决定）
-
-        返回:
-            dict: 包含每个有效阈值组合对应的夏普比率的字典
+        优化多个因子阈值，使用joblib并行测试不同�值组合。
         """
         param_names = list(threshold_params.keys())
         param_values = list(threshold_params.values())
@@ -89,39 +40,80 @@ class StrategyOptimizer:
         
         results = {}
         total_combinations = len(valid_combinations)
-        self.logger.info(f"Testing {total_combinations} valid threshold combinations using threading")
+        total_start_time = pd.Timestamp.now()
+        self.logger.info(f"Testing {total_combinations} valid threshold combinations using joblib")
         
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_combo = {
-                executor.submit(
-                    self._test_combination, 
-                    combination, 
-                    param_names, 
-                    data,
-                    factor_class,
-                    strategy_class
-                ): combination 
-                for combination in valid_combinations
-            }
+        # 分批处理
+        batch_size = 100
+        for i in range(0, len(valid_combinations), batch_size):
+            batch = valid_combinations[i:i + batch_size]
             
-            for i, future in enumerate(as_completed(future_to_combo), 1):
-                try:
-                    result = future.result()
-                    combination = result['combination']
-                    results[combination] = {
-                        'params': result['params'],
-                        'sharpe_ratio': result['sharpe_ratio'],
-                        'metrics': result['metrics']
-                    }
-                    
+            # 使用joblib处理当前批次
+            processed_results = Parallel(n_jobs=n_jobs, verbose=0)(
+                delayed(self._test_combination)(
+                    combination, param_names, data, factor_class, strategy_class
+                ) for combination in batch
+            )
+            
+            # 实时处理和打印每个批次的结果
+            for combination, result in zip(batch, processed_results):
+                if result is not None:
+                    results[combination] = result
+                    params = dict(zip(param_names, combination))
+                    total_elapsed = (pd.Timestamp.now() - total_start_time).total_seconds()
                     self.logger.info(
-                        f"Completed combination {i}/{total_combinations}: "
-                        f"{result['params']}, Sharpe Ratio: {result['sharpe_ratio']:.4f}"
+                        f"Progress: {len(results)}/{total_combinations} | "
+                        f"Time: {total_elapsed:.2f}s | "
+                        f"Params: {params}, "
+                        f"Sharpe: {result['sharpe_ratio']:.4f}, "
+                        f"Return: {result['metrics']['Total Return']:.4f}"
                     )
-                except Exception as e:
-                    self.logger.error(f"Error processing combination: {e}")
-
+        
+        total_time = (pd.Timestamp.now() - total_start_time).total_seconds()
+        self.logger.info(f"Optimization completed in {total_time:.2f}s")
         return results
+
+    def _test_combination(self, combination, param_names, data, factor_class, strategy_class):
+        """
+        测试单个参数组合
+        
+        Args:
+            combination: 参数组合
+            param_names: 参数名列表
+            data: 回测数据
+            factor_class: 因子类
+            strategy_class: 策略类
+        """
+        start_time = pd.Timestamp.now()
+        try:
+            params = dict(zip(param_names, combination))
+            # 直接使用类名作为因子名称
+            factor = factor_class(name=factor_class.__name__, **params)
+            factor_engine = FactorEngine()
+            factor_engine.register_factor(factor)
+            strategy = strategy_class(factors=[factor])
+            
+            portfolio = self.engine.run_backtest(
+                data=data,
+                strategy=strategy,
+                factor_engine=factor_engine,
+                plot=False
+            )
+            
+            metrics = self.evaluator.calculate_performance_metrics(portfolio)
+            
+            elapsed_time = (pd.Timestamp.now() - start_time).total_seconds()
+            
+            return {
+                'params': params,
+                'sharpe_ratio': metrics['Sharpe Ratio'],
+                'metrics': metrics,
+                'elapsed_time': elapsed_time
+            }
+        except Exception as e:
+            elapsed_time = (pd.Timestamp.now() - start_time).total_seconds()
+            self.logger.error(f"Error testing combination {params} after {elapsed_time:.2f}s: {e}")
+            return None
 
     def find_optimal_thresholds(self, results: dict, data: pd.DataFrame, 
                               factor_class: BaseFactor, strategy_class: BaseStrategy) -> tuple:

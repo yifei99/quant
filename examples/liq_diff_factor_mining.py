@@ -4,7 +4,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import logging
-import multiprocessing
 from backtest.backtest_engine import BacktestEngine
 from backtest.strategy import FactorBasedStrategy
 from backtest.performance import PerformanceEvaluator
@@ -13,7 +12,7 @@ from factors.factor_engine import FactorEngine
 from factors.optimizer import StrategyOptimizer
 from data.data_loader import DataLoader
 import numpy as np
-
+from joblib import Parallel, delayed
 
 
 
@@ -109,7 +108,8 @@ def main():
     engine = BacktestEngine(
         initial_capital=10000.0,
         commission=0.001,
-        slippage=0.001
+        slippage=0.001,
+        periods_per_year=365*24
     )
     evaluator = PerformanceEvaluator()
 
@@ -126,7 +126,8 @@ def main():
             'upper_threshold': np.round(np.arange(-178000000, 90700000, 1000000)).tolist(),
             'lower_threshold': np.round(np.arange(-178000000, 90700000, 1000000)).tolist()
         }
-        max_workers = max(1, multiprocessing.cpu_count() - 1)
+        # 使用 joblib 替代 multiprocessing
+        n_jobs = -1  # 使用 CPU核心数-1
         
         logger.info("Starting parameter optimization...")
         optimization_results = optimizer.optimize_thresholds(
@@ -134,8 +135,9 @@ def main():
             threshold_params=threshold_params,
             factor_class=Liq2Factor,
             strategy_class=FactorBasedStrategy,
-            max_workers=max_workers
+            n_jobs=n_jobs  # 修改参数名
         )
+        
         
         # 找到最优閾值组合
         optimal_params, optimal_sharpe, optimal_metrics, optimized_portfolio = (

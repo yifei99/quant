@@ -1,11 +1,13 @@
 Optimal Parameters:
-Upper Threshold: 700000000
-Lower Threshold: -3200000000
+Upper Threshold: -1600000000
+Lower Threshold: -3300000000
 
 Performance Metrics:
-Total Return: 35.23%
-Annualized Return: 8.54%
-Sharpe Ratio: 0.3395
-Sortino Ratio: 0.7323
-Max Drawdown: -16.83%
-Number of Trades: 86.0000
+Total Return: 374.30%
+Realized Return: -92.48%
+Floating Return: 466.79%
+Annualized Return: 52.61%
+Sharpe Ratio: 0.8485
+Sortino Ratio: 0.9567
+Max Drawdown: -100.19%
+Number of Trades: 7.0000

@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import logging
-import multiprocessing
+from joblib import Parallel, delayed
 from backtest.backtest_engine import BacktestEngine
 from backtest.strategy import FactorBasedStrategy
 from backtest.performance import PerformanceEvaluator
@@ -76,8 +76,8 @@ def main():
     factor_engine = FactorEngine()
     usdt_factor = USDTIssuance2Factor(
         name='usdt_issuance', 
-        upper_threshold=700000000, 
-        lower_threshold=-300000000
+        upper_threshold=-1600000000, 
+        lower_threshold=-3200000000
     )
     factor_engine.register_factor(usdt_factor)
     strategy = FactorBasedStrategy(factors=[usdt_factor])
@@ -93,15 +93,18 @@ def main():
     try:
         # 4.1 Direct backtest
         portfolio = engine.run_backtest(data, strategy, factor_engine)
+        metrics = evaluator.calculate_performance_metrics(portfolio)
         logger.info("Initial backtest completed")
-
+        logger.info(metrics)
         # 4.2 Parameter optimization
         optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
         threshold_params = {
-            'upper_threshold': range(-3200000000, 1500000000, 100000000),
-            'lower_threshold': range(-3200000000, 1500000000, 100000000)
+            'upper_threshold': range(-3300000000, 1600000000, 100000000),
+            'lower_threshold': range(-3300000000, 1600000000, 100000000)
         }
-        max_workers = max(1, multiprocessing.cpu_count() - 1)
+        
+        # 使用 joblib 替代 multiprocessing
+        n_jobs = -1  # 使用 CPU核心数-1
         
         logger.info("Starting parameter optimization...")
         optimization_results = optimizer.optimize_thresholds(
@@ -109,7 +112,7 @@ def main():
             threshold_params=threshold_params,
             factor_class=USDTIssuance2Factor,
             strategy_class=FactorBasedStrategy,
-            max_workers=max_workers
+            n_jobs=n_jobs  # 修改参数名
         )
         
         # 找到最优閾值组合
