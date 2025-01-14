@@ -25,22 +25,21 @@ class BacktestEngine:
             initial_capital: Initial capital for backtest
             commission: Commission rate for trades
             slippage: Slippage rate for trades
+            trading_logic: Trading logic instance
             periods_per_year: Number of periods in a year (e.g., 365 for daily, 52 for weekly, 12 for monthly)
         """
         self.initial_capital = initial_capital
         self.commission = commission
         self.slippage = slippage
+        self.periods_per_year = periods_per_year
         
-        # 如果提供了trading_logic实例，更新其commission和slippage
         if trading_logic:
             trading_logic.commission = commission
             trading_logic.slippage = slippage
             self.trading_logic = trading_logic
         else:
-            # 如果没有提供trading_logic，使用默认的StandardTradingLogic
             self.trading_logic = StandardTradingLogic(commission, slippage)
             
-        self.periods_per_year = periods_per_year
         self.logger = logging.getLogger(__name__)
 
     def run_backtest(self, data: pd.DataFrame, strategy: BaseStrategy, 
@@ -59,7 +58,10 @@ class BacktestEngine:
         
         # Add visualization
         if plot:
-            evaluator = PerformanceEvaluator()
+            evaluator = PerformanceEvaluator(
+                initial_investment=self.initial_capital,
+                periods_per_year=self.periods_per_year
+            )
             evaluator.plot_performance(portfolio, data)
         
         return portfolio

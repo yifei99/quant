@@ -1,11 +1,14 @@
 import sys
 import os
+
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 import logging
 from backtest.backtest_engine import BacktestEngine
 from backtest.strategy import FactorBasedStrategy
+from backtest.trading_logic import HoldTradingLogic,LongOnlyTradingLogic,ShortOnlyTradingLogic
 from backtest.performance import PerformanceEvaluator
 from factors.factor_definitions import Liq2Factor
 from factors.factor_engine import FactorEngine
@@ -96,35 +99,49 @@ def main():
     factor_engine = FactorEngine()
     liq_factor = Liq2Factor(
         name='liq', 
-        upper_threshold=1.1, 
-        lower_threshold=-0.5
+        upper_threshold=-100000000, 
+        lower_threshold=-178000000
     )
     factor_engine.register_factor(liq_factor)
     
-    # 添加因子信号调试信息
-    factor_signals = factor_engine.calculate_factors(data)
+    
+    logic = HoldTradingLogic(commission=0.001, slippage=0.001)
+    # logic = LongOnlyTradingLogic(commission=0.001, slippage=0.001)
+    # logic = ShortOnlyTradingLogic(commission=0.001, slippage=0.001)
+
     
     strategy = FactorBasedStrategy(factors=[liq_factor])
     engine = BacktestEngine(
         initial_capital=10000.0,
         commission=0.001,
         slippage=0.001,
+        trading_logic=logic,
+    )
+    evaluator = PerformanceEvaluator(
         periods_per_year=365*24
     )
-    evaluator = PerformanceEvaluator()
 
     # 4. Run backtest
     logger.info("Starting backtest...")
     try:
         # 4.1 Direct backtest
         portfolio = engine.run_backtest(data, strategy, factor_engine)
+                # 计算并打印性能指标
+        metrics = evaluator.calculate_performance_metrics(portfolio)
+        logger.info("Performance Metrics:")
+        for key, value in metrics.items():
+            if 'Return' in key or 'Drawdown' in key:
+                logger.info(f"{key}: {value * 100:.2f}%")
+            else:
+                logger.info(f"{key}: {value:.4f}")
+                
         logger.info("Initial backtest completed")
 
         # 4.2 Parameter optimization
         optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
         threshold_params = {
-            'upper_threshold': np.round(np.arange(-178000000, 90700000, 1000000)).tolist(),
-            'lower_threshold': np.round(np.arange(-178000000, 90700000, 1000000)).tolist()
+            'upper_threshold': np.round(np.arange(-178000000, 90700000, 2000000)).tolist(),
+            'lower_threshold': np.round(np.arange(-178000000, 90700000, 2000000)).tolist()
         }
         # 使用 joblib 替代 multiprocessing
         n_jobs = -1  # 使用 CPU核心数-1

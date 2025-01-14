@@ -34,7 +34,7 @@ class StrategyOptimizer:
         
         valid_combinations = [
             combo for combo in param_combinations 
-            if dict(zip(param_names, combo)).get('lower_threshold', -float('inf')) <
+            if dict(zip(param_names, combo)).get('lower_threshold', -float('inf')) <=
                dict(zip(param_names, combo)).get('upper_threshold', float('inf'))
         ]
         
@@ -44,7 +44,7 @@ class StrategyOptimizer:
         self.logger.info(f"Testing {total_combinations} valid threshold combinations using joblib")
         
         # 分批处理
-        batch_size = 100
+        batch_size = 8
         for i in range(0, len(valid_combinations), batch_size):
             batch = valid_combinations[i:i + batch_size]
             

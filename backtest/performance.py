@@ -8,8 +8,9 @@ class PerformanceEvaluator:
     """
     绩效评估类，计算回测的各项绩效指标。
     """
-    def __init__(self, initial_investment=10000):
+    def __init__(self, initial_investment=10000, periods_per_year=365):
         self.initial_investment = initial_investment
+        self.periods_per_year = periods_per_year
 
     def _calculate_portfolio_values(self, portfolio: pd.DataFrame) -> np.ndarray:
         """计算每日投资组合市值"""
@@ -52,7 +53,7 @@ class PerformanceEvaluator:
         """
         return (portfolio['total'].iloc[-1]) / self.initial_investment
     
-    def calculate_floating_return(self, portfolio: pd.DataFrame) -> float:
+    def calculate_unrealized_return(self, portfolio: pd.DataFrame) -> float:
         """
         计算浮动盈亏回报率
         """
@@ -110,7 +111,6 @@ class PerformanceEvaluator:
             # 计算年化超额收益和波动率
             annual_excess_return = np.mean(daily_returns) * periods_per_year - risk_free_rate
             annual_volatility = np.std(daily_returns) * np.sqrt(periods_per_year)
-            
             # print("\n=== Sharpe Ratio Components ===")
             # print(f"Annual excess return: {annual_excess_return:.4f}")
             # print(f"Annual volatility: {annual_volatility:.4f}")
@@ -191,32 +191,33 @@ class PerformanceEvaluator:
         
         return trade_count
 
-    def calculate_performance_metrics(self, portfolio: pd.DataFrame, periods_per_year=365) -> dict:
+    def calculate_performance_metrics(self, portfolio: pd.DataFrame) -> dict:
         """
-        Calculate all performance metrics.
-        
-        Args:
-            portfolio: Portfolio data
-            periods_per_year: Number of periods in a year (e.g., 365 for daily, 52 for weekly, 12 for monthly)
+        计算所有性能指标
         """
-     
-        metrics = {
-            'Total Return': self.calculate_total_return(portfolio),
-            'Realized Return': self.calculate_realized_return(portfolio),
-            'Floating Return': self.calculate_floating_return(portfolio),
-            'Annualized Return': self.calculate_annualized_return(portfolio),
-            'Sharpe Ratio': self.calculate_sharpe_ratio(portfolio, periods_per_year=periods_per_year),
-            'Sortino Ratio': self.calculate_sortino_ratio(portfolio, periods_per_year=periods_per_year),
-            'Max Drawdown': self.calculate_max_drawdown(portfolio),
-            'Number of Trades': self.calculate_trade_count(portfolio)
-        }
-        
-        # Add error checking for metrics
-        for key in metrics:
-            if np.isnan(metrics[key]) or np.isinf(metrics[key]):
-                metrics[key] = 0.0
-                
-        return metrics
+        try:
+            total_return = self.calculate_total_return(portfolio)
+            realized_return = self.calculate_realized_return(portfolio)
+            unrealized_return = self.calculate_unrealized_return(portfolio)
+            annualized_return = self.calculate_annualized_return(portfolio)
+            sharpe_ratio = self.calculate_sharpe_ratio(portfolio, periods_per_year=self.periods_per_year)
+            sortino_ratio = self.calculate_sortino_ratio(portfolio, periods_per_year=self.periods_per_year)
+            max_drawdown = self.calculate_max_drawdown(portfolio)
+            trade_count = self.calculate_trade_count(portfolio)
+            
+            return {
+                'Total Return': total_return,
+                'Realized Return': realized_return,
+                'Unrealized Return': unrealized_return,
+                'Annualized Return': annualized_return,
+                'Sharpe Ratio': sharpe_ratio,
+                'Sortino Ratio': sortino_ratio,
+                'Max Drawdown': max_drawdown,
+                'Trade Count': trade_count
+            }
+        except Exception as e:
+            logging.error(f"Error calculating performance metrics: {e}")
+            return {}
 
     def plot_performance(self, portfolio: pd.DataFrame, data: pd.DataFrame):
         """

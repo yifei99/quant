@@ -41,9 +41,9 @@ def main():
         data = data_loader.load_data(
             exchange="binance",
             symbol="BTCUSDT",
-            interval="1d",
-            start_date="2021-03-31",
-            end_date="2024-12-05",
+            interval="1h",
+            start_date="2023-08-10",
+            end_date="2025-1-09",
             data_type="spot"
         )
         logger.info("Market data loaded successfully")
@@ -75,7 +75,9 @@ def main():
         commission=0.001,
         slippage=0.001
     )
-    evaluator = PerformanceEvaluator()
+    evaluator = PerformanceEvaluator(
+        periods_per_year=365*24
+    )
  
     # 4. Run backtest
     logger.info("Starting backtest...")
