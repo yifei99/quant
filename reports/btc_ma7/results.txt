@@ -1,0 +1,9 @@
+Performance Metrics:
+Total Return: 16.76%
+Realized Return: 18.62%
+Unrealized Return: -1.86%
+Annualized Return: 18.17%
+Sharpe Ratio: 0.2340
+Sortino Ratio: 0.2450
+Max Drawdown: -29.53%
+Trade Count: 64.0000
