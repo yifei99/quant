@@ -106,8 +106,8 @@ def main():
     
     
     # logic = HoldTradingLogic(commission=0.001, slippage=0.001)
-    logic = LongOnlyTradingLogic(commission=0.001, slippage=0.001)
-    # logic = ShortOnlyTradingLogic(commission=0.001, slippage=0.001)
+    # logic = LongOnlyTradingLogic(commission=0.001, slippage=0.001)
+    logic = ShortOnlyTradingLogic(commission=0.001, slippage=0.001)
 
     
     strategy = FactorBasedStrategy(factors=[liq_factor])
