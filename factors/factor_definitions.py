@@ -94,3 +94,57 @@ class Liq2Factor(TwoThresholdFactor):
             upper_threshold=upper_threshold,
             lower_threshold=lower_threshold
         )
+
+class BaseMaFactor(BaseFactor):
+    """通用MA因子基类"""
+    def __init__(self, name: str, column_name: str, ma_period: int = 7):
+        super().__init__(name)
+        self.column_name = column_name
+        self.ma_period = ma_period
+        
+    def calculate(self, data: pd.DataFrame) -> pd.Series:
+        """
+        计算MA信号
+        1: 当值大于MA时
+        -1: 当值小于MA时
+        0: 其他情况
+        """
+        if self.column_name not in data.columns:
+            raise ValueError(f"DataFrame must contain '{self.column_name}' column")
+            
+        # 计算移动平均
+        ma = data[self.column_name].rolling(window=self.ma_period).mean()
+        
+        # 生成信号
+        signals = pd.Series(0, index=data.index)
+        signals[data[self.column_name] > ma] = 1
+        signals[data[self.column_name] < ma] = -1
+        
+        return signals.rename(self.name)
+
+class UsdVolumeMaFactor(BaseMaFactor):
+    """USD交易量MA因子"""
+    def __init__(self, name='usd_volume_ma', ma_period=7):
+        super().__init__(
+            name=name,
+            column_name='quote_asset_volume',
+            ma_period=ma_period
+        )
+
+class AssetVolumeMaFactor(BaseMaFactor):
+    """资产交易量MA因子"""
+    def __init__(self, name='asset_volume_ma', ma_period=7):
+        super().__init__(
+            name=name,
+            column_name='volume',
+            ma_period=ma_period
+        )
+
+class PriceMaFactor(BaseMaFactor):
+    """价格MA因子"""
+    def __init__(self, name='price_ma', ma_period=7):
+        super().__init__(
+            name=name,
+            column_name='close',
+            ma_period=ma_period
+        )

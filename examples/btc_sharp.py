@@ -41,12 +41,24 @@ def main():
         data = data_loader.load_data(
             exchange="binance",
             symbol="BTCUSDT",
-            interval="1h",
-            start_date="2023-08-10",
-            end_date="2025-1-09",
+            interval="1d",
+            start_date="2021-03-31",
+            end_date="2024-12-05",
             data_type="spot"
         )
-        logger.info("Market data loaded successfully")
+        
+        # 将市场数据的时间戳转换为datetime格式
+        data['timestamp_start'] = data['timestamp_start'].astype(str).str[:10].astype(int)
+        data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
+        
+        # 设置您想要的日期范围
+        start_filter = '2024-01-01'
+        end_filter = '2024-12-31'
+        
+        # 过滤数据
+        data = data[(data['Date'] >= start_filter) & (data['Date'] <= end_filter)]
+        data = data[['Date','close']]
+        logger.info("Market data loaded and filtered successfully")
     except FileNotFoundError as e:
         logger.error(e)
         return
@@ -57,10 +69,6 @@ def main():
         def generate_signals(self, data):
             """第一天买入，之后持有"""
   
-            
-            # 将市场数据的时间戳转换为datetime格式
-            data['timestamp_start'] = data['timestamp_start'].astype(str).str[:10].astype(int)
-            data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
             
             signals = pd.Series(1, index=data.index, name='signal')
             signals.iloc[-1] = 0  # 最后一天卖出
@@ -76,7 +84,7 @@ def main():
         slippage=0.001
     )
     evaluator = PerformanceEvaluator(
-        periods_per_year=365*24
+        periods_per_year=365
     )
  
     # 4. Run backtest

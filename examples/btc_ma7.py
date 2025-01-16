@@ -69,7 +69,7 @@ def main():
     # calculate ma7
     data['MA7'] = data['close'].rolling(window=7).mean()
     logger.info("MA7 calculated successfully")
-    print(data.head(10))
+    print(data.head(20))
 
     # 3. Initialize components
     class ma7_strategy: 
@@ -86,7 +86,8 @@ def main():
     engine = BacktestEngine(
         initial_capital=10000.0,
         commission=0.001,
-        slippage=0.001
+        slippage=0.001,
+        trading_logic=logic,
     )
     evaluator = PerformanceEvaluator(
         periods_per_year=365
@@ -99,6 +100,7 @@ def main():
         
         # 4.1 Direct backtest
         portfolio = engine.run_backtest(data, strategy,plot=True)
+        print(portfolio.head(20))
         
         # 计算并打印性能指标
         metrics = evaluator.calculate_performance_metrics(portfolio)

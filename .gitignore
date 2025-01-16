@@ -1,4 +1,6 @@
 */__pycache__/
 venv
 dataset/*
-
+reports/*
+examples/strategy_performance.html
+examples/strategy_performance.png
