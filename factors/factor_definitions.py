@@ -96,7 +96,7 @@ class Liq2Factor(TwoThresholdFactor):
         )
 
 class BaseMaFactor(BaseFactor):
-    """通用MA因子基类"""
+    """Base class for Moving Average factors"""
     def __init__(self, name: str, column_name: str, ma_period: int = 7):
         super().__init__(name)
         self.column_name = column_name
@@ -104,18 +104,24 @@ class BaseMaFactor(BaseFactor):
         
     def calculate(self, data: pd.DataFrame) -> pd.Series:
         """
-        计算MA信号
-        1: 当值大于MA时
-        -1: 当值小于MA时
-        0: 其他情况
+        Calculate MA signals
+        1: When value is above MA
+        -1: When value is below MA
+        0: Otherwise
+        
+        Args:
+            data (pd.DataFrame): Input data containing the column to monitor
+
+        Returns:
+            pd.Series: Factor signals
         """
         if self.column_name not in data.columns:
             raise ValueError(f"DataFrame must contain '{self.column_name}' column")
             
-        # 计算移动平均
+        # Calculate moving average
         ma = data[self.column_name].rolling(window=self.ma_period).mean()
         
-        # 生成信号
+        # Generate signals
         signals = pd.Series(0, index=data.index)
         signals[data[self.column_name] > ma] = 1
         signals[data[self.column_name] < ma] = -1
@@ -123,7 +129,7 @@ class BaseMaFactor(BaseFactor):
         return signals.rename(self.name)
 
 class UsdVolumeMaFactor(BaseMaFactor):
-    """USD交易量MA因子"""
+    """USD Volume Moving Average Factor"""
     def __init__(self, name='usd_volume_ma', ma_period=7):
         super().__init__(
             name=name,
@@ -132,7 +138,7 @@ class UsdVolumeMaFactor(BaseMaFactor):
         )
 
 class AssetVolumeMaFactor(BaseMaFactor):
-    """资产交易量MA因子"""
+    """Asset Volume Moving Average Factor"""
     def __init__(self, name='asset_volume_ma', ma_period=7):
         super().__init__(
             name=name,
@@ -141,10 +147,76 @@ class AssetVolumeMaFactor(BaseMaFactor):
         )
 
 class PriceMaFactor(BaseMaFactor):
-    """价格MA因子"""
+    """Price Moving Average Factor"""
     def __init__(self, name='price_ma', ma_period=7):
         super().__init__(
             name=name,
             column_name='close',
             ma_period=ma_period
         )
+
+class Base2MaFactor(BaseFactor):
+    """Base class for Dual Moving Average factors"""
+    def __init__(self, name: str, column_name: str, ma_period_1: int = 7, ma_period_2: int = 14):
+        super().__init__(name)
+        self.column_name = column_name
+        self.ma_period_1 = ma_period_1
+        self.ma_period_2 = ma_period_2
+        
+    def calculate(self, data: pd.DataFrame) -> pd.Series:
+        """
+        Calculate Dual MA signals
+        1: When shorter MA crosses above longer MA
+        -1: When shorter MA crosses below longer MA
+        0: Otherwise
+        
+        Args:
+            data (pd.DataFrame): Input data containing the column to monitor
+
+        Returns:
+            pd.Series: Factor signals
+        """
+        if self.column_name not in data.columns:
+            raise ValueError(f"DataFrame must contain '{self.column_name}' column")
+            
+        # Calculate moving averages
+        ma_1 = data[self.column_name].rolling(window=self.ma_period_1).mean()
+        ma_2 = data[self.column_name].rolling(window=self.ma_period_2).mean()
+        
+        # Generate signals
+        signals = pd.Series(0, index=data.index)
+        signals[ma_1 > ma_2] = 1
+        signals[ma_1 < ma_2] = -1
+        
+        return signals.rename(self.name)
+    
+class Price2MaFactor(Base2MaFactor):
+    """Price Dual Moving Average Factor"""
+    def __init__(self, name='price_2ma', ma_period_1=7, ma_period_2=14):
+        super().__init__(
+            name=name,
+            column_name='close',
+            ma_period_1=ma_period_1,
+            ma_period_2=ma_period_2
+        )
+
+class Volume2MaFactor(Base2MaFactor):
+    """Volume Dual Moving Average Factor"""
+    def __init__(self, name='volume_2ma', ma_period_1=7, ma_period_2=14):
+        super().__init__(
+            name=name,
+            column_name='volume',
+            ma_period_1=ma_period_1,
+            ma_period_2=ma_period_2
+        )   
+
+class UsdVolume2MaFactor(Base2MaFactor):
+    """USD Volume Dual Moving Average Factor"""
+    def __init__(self, name='usd_volume_2ma', ma_period_1=7, ma_period_2=14):
+        super().__init__(
+            name=name,
+            column_name='quote_asset_volume',
+            ma_period_1=ma_period_1,
+            ma_period_2=ma_period_2
+        )
+        

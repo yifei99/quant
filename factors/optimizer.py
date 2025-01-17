@@ -24,24 +24,36 @@ class StrategyOptimizer:
                           threshold_params: dict,
                           factor_class: BaseFactor,
                           strategy_class: BaseStrategy,
-                          n_jobs: int = -1) -> dict:
+                          n_jobs: int = -1,
+                          enforce_threshold_order: bool = True) -> dict:
         """
-        优化多个因子阈值，使用joblib并行测试不同�值组合。
+        优化多个因子阈值，使用joblib并行测试不同组合。
+        
+        Args:
+            data: 回测数据
+            threshold_params: 阈值参数字典
+            factor_class: 因子类
+            strategy_class: 策略类
+            n_jobs: 并行进程数
+            enforce_threshold_order: 是否强制要求下限阈值小于上限阈值
         """
         param_names = list(threshold_params.keys())
         param_values = list(threshold_params.values())
         param_combinations = list(product(*param_values))
         
-        valid_combinations = [
-            combo for combo in param_combinations 
-            if dict(zip(param_names, combo)).get('lower_threshold', -float('inf')) <=
-               dict(zip(param_names, combo)).get('upper_threshold', float('inf'))
-        ]
+        if enforce_threshold_order:
+            valid_combinations = [
+                combo for combo in param_combinations 
+                if dict(zip(param_names, combo)).get('lower_threshold', -float('inf')) <=
+                   dict(zip(param_names, combo)).get('upper_threshold', float('inf'))
+            ]
+        else:
+            valid_combinations = param_combinations
         
         results = {}
         total_combinations = len(valid_combinations)
         total_start_time = pd.Timestamp.now()
-        self.logger.info(f"Testing {total_combinations} valid threshold combinations using joblib")
+        self.logger.info(f"Testing {total_combinations} parameter combinations using joblib")
         
         # 分批处理
         batch_size = 8

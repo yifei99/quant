@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 from backtest.backtest_engine import BacktestEngine
 from backtest.strategy import FactorBasedStrategy
 from backtest.performance import PerformanceEvaluator
-from factors.factor_definitions import USDTIssuance2Factor, UsdVolumeMaFactor
+from factors.factor_definitions import AssetVolumeMaFactor, PriceMaFactor, UsdVolumeMaFactor
 from factors.factor_engine import FactorEngine
 from factors.optimizer import StrategyOptimizer
 from data.data_loader import DataLoader
@@ -67,15 +67,32 @@ def main():
 
     # 3. Initialize components
     factor_engine = FactorEngine()
-    ma_factor = UsdVolumeMaFactor(
-        name='usd_volume_ma', 
+    # ma_factor = UsdVolumeMaFactor(
+    #     name='usd_volume_ma', 
+    #     ma_period=7
+    # )
+    ma_factor = PriceMaFactor(
+        name='price_ma', 
         ma_period=7
     )
+    # ma_factor = AssetVolumeMaFactor(
+    #     name='asset_volume_ma', 
+    #     ma_period=7
+    # )
     factor_engine.register_factor(ma_factor)
+
     strategy = FactorBasedStrategy(factors=[ma_factor])
-    logic = HoldTradingLogic(commission=0.001, slippage=0.001)
-    # logic = LongOnlyTradingLogic(commission=0.001, slippage=0.001)
-    # logic = ShortOnlyTradingLogic(commission=0.001, slippage=0.001)
+    def get_trading_logic(logic_type=1, commission=0.001, slippage=0.001):
+        if logic_type == 1:
+            return HoldTradingLogic(commission=commission, slippage=slippage)
+        elif logic_type == 2:
+            return LongOnlyTradingLogic(commission=commission, slippage=slippage)
+        elif logic_type == 3:
+            return ShortOnlyTradingLogic(commission=commission, slippage=slippage)
+        else:
+            raise ValueError("Invalid logic_type. Must be 1, 2 or 3.")
+            
+    logic = get_trading_logic(logic_type=3)
     engine = BacktestEngine(
         initial_capital=10000.0,
         commission=0.001,
@@ -88,7 +105,7 @@ def main():
     logger.info("Starting backtest...")
     try:
         # 4.1 Direct backtest
-        portfolio = engine.run_backtest(data, strategy, factor_engine,plot=True)
+        portfolio = engine.run_backtest(data, strategy, factor_engine)
         metrics = evaluator.calculate_performance_metrics(portfolio)
         logger.info("Initial backtest completed")
         logger.info("Performance Metrics:")
@@ -105,22 +122,27 @@ def main():
         
         # 使用 joblib 替代 multiprocessing
         n_jobs = -1  # 使用 CPU核心数-1
-        
+
+        # factor_class = UsdVolumeMaFactor
+        factor_class = PriceMaFactor
+        # factor_class = AssetVolumeMaFactor
+
         logger.info("Starting parameter optimization...")
         optimization_results = optimizer.optimize_thresholds(
             data=data,
             threshold_params=threshold_params,
-            factor_class=UsdVolumeMaFactor,
+            factor_class=factor_class,
             strategy_class=FactorBasedStrategy,
             n_jobs=n_jobs  # 修改参数名
         )
         
+
         # 找到最优閾值组合
         optimal_params, optimal_sharpe, optimal_metrics, optimized_portfolio = (
             optimizer.find_optimal_thresholds(
                 results=optimization_results,
                 data=data,
-                factor_class=UsdVolumeMaFactor,
+                factor_class=factor_class,
                 strategy_class=FactorBasedStrategy
             )
         )
