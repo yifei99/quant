@@ -56,7 +56,7 @@ class StrategyOptimizer:
         self.logger.info(f"Testing {total_combinations} parameter combinations using joblib")
         
         # 分批处理
-        batch_size = 8
+        batch_size = 14
         for i in range(0, len(valid_combinations), batch_size):
             batch = valid_combinations[i:i + batch_size]
             

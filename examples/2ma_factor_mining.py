@@ -42,9 +42,9 @@ def main():
     try:
         data = data_loader.load_data(
             exchange="binance",
-            symbol="SOLUSDT",
+            symbol="BTCUSDT",
             interval="1d",
-            start_date="2022-1-01",
+            start_date="2021-03-31",
             end_date="2024-12-31",
             data_type="spot"
         )
@@ -70,16 +70,16 @@ def main():
     # 3. Initialize components
     factor_engine = FactorEngine()
 
-    # ma_factor = UsdVolume2MaFactor(
-    #     name='usd_volume_2ma', 
-    #     ma_period_1=7,
-    #     ma_period_2=14
-    # )
-    ma_factor = Price2MaFactor(
-        name='price_2ma', 
+    ma_factor = UsdVolume2MaFactor(
+        name='usd_volume_2ma', 
         ma_period_1=7,
         ma_period_2=14
     )
+    # ma_factor = Price2MaFactor(
+    #     name='price_2ma', 
+    #     ma_period_1=7,
+    #     ma_period_2=14
+    # )
     # ma_factor = Volume2MaFactor(
     #     name='volume_2ma', 
     #     ma_period_1=7,
@@ -123,15 +123,15 @@ def main():
         # 4.2 Parameter optimization
         optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
         threshold_params = {
-            'ma_period_1': range(3, 240, 1),
-            'ma_period_2': range(3, 240, 1),
+            'ma_period_1': range(3, 360, 1),
+            'ma_period_2': range(3, 360, 1),
         }
         
         # 使用 joblib 替代 multiprocessing
         n_jobs = -1  # 使用 CPU核心数-1
 
-        # factor_class = UsdVolume2MaFactor
-        factor_class = Price2MaFactor
+        factor_class = UsdVolume2MaFactor
+        # factor_class = Price2MaFactor
         # factor_class = Volume2MaFactor
 
         logger.info("Starting parameter optimization...")
@@ -141,7 +141,7 @@ def main():
             factor_class=factor_class,
             strategy_class=FactorBasedStrategy,
             n_jobs=n_jobs,
-            enforce_threshold_order=False
+            enforce_threshold_order=True
         )
         
 
