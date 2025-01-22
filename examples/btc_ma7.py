@@ -44,7 +44,7 @@ def main():
             symbol="BTCUSDT",
             interval="1d",
             start_date="2021-03-31",
-            end_date="2024-12-05",
+            end_date="2024-12-31",
             data_type="spot"
         )
         
@@ -54,7 +54,7 @@ def main():
         
         # 设置您想要的日期范围
         start_filter = '2024-01-01'
-        end_filter = '2024-12-31'
+        end_filter = '2024-03-31'
         
         # 过滤数据
         data = data[(data['Date'] >= start_filter) & (data['Date'] <= end_filter)]
@@ -82,11 +82,11 @@ def main():
             return data
     
     strategy = ma7_strategy()
-    logic = LongOnlyTradingLogic(commission=0.001, slippage=0.001)
+    logic = LongOnlyTradingLogic(commission=0, slippage=0)
     engine = BacktestEngine(
         initial_capital=10000.0,
-        commission=0.001,
-        slippage=0.001,
+        commission=0,
+        slippage=0,
         trading_logic=logic,
     )
     evaluator = PerformanceEvaluator(

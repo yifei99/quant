@@ -34,6 +34,10 @@ def main():
     )
     logger = logging.getLogger(__name__)
 
+    logger.info("Starting new optimization run...")
+    start_time = pd.Timestamp.now()
+    logger.info(f"Start time: {start_time}")
+
     # Initialize DataLoader
     data_folder = "../dataset"
     data_loader = DataLoader(data_folder)
@@ -70,16 +74,16 @@ def main():
     # 3. Initialize components
     factor_engine = FactorEngine()
 
-    ma_factor = UsdVolume2MaFactor(
-        name='usd_volume_2ma', 
-        ma_period_1=7,
-        ma_period_2=14
-    )
-    # ma_factor = Price2MaFactor(
-    #     name='price_2ma', 
+    # ma_factor = UsdVolume2MaFactor(
+    #     name='usd_volume_2ma', 
     #     ma_period_1=7,
     #     ma_period_2=14
     # )
+    ma_factor = Price2MaFactor(
+        name='price_2ma', 
+        ma_period_1=7,
+        ma_period_2=14
+    )
     # ma_factor = Volume2MaFactor(
     #     name='volume_2ma', 
     #     ma_period_1=7,
@@ -98,7 +102,7 @@ def main():
         else:
             raise ValueError("Invalid logic_type. Must be 1, 2 or 3.")
             
-    logic = get_trading_logic(logic_type=2)
+    logic = get_trading_logic(logic_type=1)
     engine = BacktestEngine(
         initial_capital=10000.0,
         commission=0.001,
@@ -123,15 +127,15 @@ def main():
         # 4.2 Parameter optimization
         optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
         threshold_params = {
-            'ma_period_1': range(3, 360, 1),
+            'ma_period_1': range(3, 360, 1),  # 最大周期改小
             'ma_period_2': range(3, 360, 1),
         }
         
         # 使用 joblib 替代 multiprocessing
         n_jobs = -1  # 使用 CPU核心数-1
 
-        factor_class = UsdVolume2MaFactor
-        # factor_class = Price2MaFactor
+        # factor_class = UsdVolume2MaFactor
+        factor_class = Price2MaFactor
         # factor_class = Volume2MaFactor
 
         logger.info("Starting parameter optimization...")
@@ -164,18 +168,22 @@ def main():
         # Create factor directory if it doesn't exist
         os.makedirs(factor_dir, exist_ok=True)
         logger.info(f"Created reports directory for {factor_name}")
+
+        # Save backtest results and metrics
+        optimized_portfolio.to_csv(os.path.join(factor_dir, 'backtest_results.csv'))
+        
+        with open(os.path.join(factor_dir, 'performance_metrics.txt'), 'w') as f:
+            f.write(f"Optimal Parameters:\n")
+            f.write(f"ma_period_1: {optimal_params['ma_period_1']}\n")
+            f.write(f"ma_period_2: {optimal_params['ma_period_2']}\n\n")
+            f.write("Performance Metrics:\n")
+            for key, value in optimal_metrics.items():
+                if 'Return' in key or 'Drawdown' in key:
+                    f.write(f"{key}: {value * 100:.2f}%\n")
+                else:
+                    f.write(f"{key}: {value:.4f}\n")
         
         # Save optimization results and create interactive 3D visualization
-        results_df = pd.DataFrame([
-            {
-                'ma_period': combo[0],
-                'sharpe_ratio': result['sharpe_ratio']
-            }
-            for combo, result in optimization_results.items()
-        ])
-        results_df.to_csv(os.path.join(factor_dir, 'optimization_results.csv'), index=False)
-        
-        # Create 3D visualization
         try:
             results_df = pd.DataFrame([
                 {
@@ -248,25 +256,23 @@ def main():
         except Exception as e:
             logger.error(f"Failed to create 3D visualization: {e}")
             
-        # Save backtest results and metrics
-        optimized_portfolio.to_csv(os.path.join(factor_dir, 'backtest_results.csv'))
-        
-        with open(os.path.join(factor_dir, 'performance_metrics.txt'), 'w') as f:
-            f.write(f"Optimal Parameters:\n")
-            f.write(f"ma_period_1: {optimal_params['ma_period_1']}\n")
-            f.write(f"ma_period_2: {optimal_params['ma_period_2']}\n\n")
-            f.write("Performance Metrics:\n")
-            for key, value in optimal_metrics.items():
-                if 'Return' in key or 'Drawdown' in key:
-                    f.write(f"{key}: {value * 100:.2f}%\n")
-                else:
-                    f.write(f"{key}: {value:.4f}\n")
+
                     
         logger.info(f"All results saved to {factor_dir}")
+        logger.info("Program completed successfully")
+        sys.exit(0)  # 显式退出程序
         
     except Exception as e:
         logger.error(f"Backtest/Optimization failed: {e}")
+        logger.error("Full error:", exc_info=True)
+        sys.exit(1)  # 发生错误时退出
         return
+
+    end_time = pd.Timestamp.now()
+    duration = end_time - start_time
+    logger.info(f"Total runtime: {duration}")
+    logger.info("Program completed successfully")
+    sys.exit(0)
 
 
 if __name__ == "__main__":

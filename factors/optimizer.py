@@ -44,8 +44,7 @@ class StrategyOptimizer:
         if enforce_threshold_order:
             valid_combinations = [
                 combo for combo in param_combinations 
-                if dict(zip(param_names, combo)).get('lower_threshold', -float('inf')) <=
-                   dict(zip(param_names, combo)).get('upper_threshold', float('inf'))
+                if combo[0] <= combo[1]  # 直接比较第一个和第二个参数
             ]
         else:
             valid_combinations = param_combinations
@@ -55,31 +54,33 @@ class StrategyOptimizer:
         total_start_time = pd.Timestamp.now()
         self.logger.info(f"Testing {total_combinations} parameter combinations using joblib")
         
-        # 分批处理
-        batch_size = 14
+        processed_count = 0  # 添加计数器
+        batch_size = 1000  # 使用更大的批次
         for i in range(0, len(valid_combinations), batch_size):
             batch = valid_combinations[i:i + batch_size]
-            
-            # 使用joblib处理当前批次
             processed_results = Parallel(n_jobs=n_jobs, verbose=0)(
                 delayed(self._test_combination)(
                     combination, param_names, data, factor_class, strategy_class
                 ) for combination in batch
             )
             
-            # 实时处理和打印每个批次的结果
+            # 处理当前批次的结果
             for combination, result in zip(batch, processed_results):
                 if result is not None:
                     results[combination] = result
-                    params = dict(zip(param_names, combination))
-                    total_elapsed = (pd.Timestamp.now() - total_start_time).total_seconds()
-                    self.logger.info(
-                        f"Progress: {len(results)}/{total_combinations} | "
-                        f"Time: {total_elapsed:.2f}s | "
-                        f"Params: {params}, "
-                        f"Sharpe: {result['sharpe_ratio']:.4f}, "
-                        f"Return: {result['metrics']['Total Return']:.4f}"
-                    )
+                    processed_count += 1  # 更新计数器
+                    
+                    # 每100个结果打印一次进度
+                    if processed_count % 100 == 0:
+                        total_elapsed = (pd.Timestamp.now() - total_start_time).total_seconds()
+                        params = dict(zip(param_names, combination))
+                        self.logger.info(
+                            f"Progress: {processed_count}/{total_combinations} | "
+                            f"Time: {total_elapsed:.2f}s | "
+                            f"Params: {params}, "
+                            f"Sharpe: {result['sharpe_ratio']:.4f}, "
+                            f"Return: {result['metrics']['Total Return']:.4f}"
+                        )
         
         total_time = (pd.Timestamp.now() - total_start_time).total_seconds()
         self.logger.info(f"Optimization completed in {total_time:.2f}s")
