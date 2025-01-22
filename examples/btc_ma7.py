@@ -53,7 +53,7 @@ def main():
         data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
         
         # 设置您想要的日期范围
-        start_filter = '2024-01-01'
+        start_filter = '2021-03-31'
         end_filter = '2024-03-31'
         
         # 过滤数据
@@ -82,11 +82,8 @@ def main():
             return data
     
     strategy = ma7_strategy()
-    logic = LongOnlyTradingLogic(commission=0, slippage=0)
+    logic = LongOnlyTradingLogic()
     engine = BacktestEngine(
-        initial_capital=10000.0,
-        commission=0,
-        slippage=0,
         trading_logic=logic,
     )
     evaluator = PerformanceEvaluator(

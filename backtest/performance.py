@@ -8,100 +8,95 @@ class PerformanceEvaluator:
     """
     绩效评估类，计算回测的各项绩效指标。
     """
-    def __init__(self, initial_investment=10000, periods_per_year=365):
-        self.initial_investment = initial_investment
+    def __init__(self, periods_per_year=365):
         self.periods_per_year = periods_per_year
 
-    def _calculate_portfolio_values(self, portfolio: pd.DataFrame) -> np.ndarray:
-        """计算每日投资组合市值"""
-        return np.where(
-            portfolio['holdings'] == 0,
-            portfolio['total'] + self.initial_investment,  # 无持仓
-            np.where(
-                portfolio['holdings'] > 0,
-                portfolio['holdings'] * portfolio['close'] - portfolio['cost_basis'] + portfolio['total'] + self.initial_investment,  # 多单
-                portfolio['holdings'] * portfolio['close'] + portfolio['cost_basis'] + portfolio['total'] + self.initial_investment  # 空单
-            )
-        )
-
-    def _calculate_return_rates(self, portfolio: pd.DataFrame) -> np.ndarray:
-        """计算累计收益率"""
-        daily_value = self._calculate_portfolio_values(portfolio)
-        return (daily_value - self.initial_investment) / self.initial_investment
+    def _calculate_price_changes(self, close_prices: np.ndarray) -> np.ndarray:
+        """计算每日价格变化率"""
+        price_changes = np.zeros(len(close_prices))
+        for i in range(1, len(close_prices)):
+            price_changes[i] = close_prices[i]/close_prices[i-1] - 1
+        return price_changes
 
     def _calculate_daily_returns(self, portfolio: pd.DataFrame) -> np.ndarray:
-        """计算日收益率变化"""
-        return_rates = self._calculate_return_rates(portfolio)
-        daily_returns = np.zeros(len(return_rates))
-        daily_returns[0] = 0
-        daily_returns[1:] = return_rates[1:] - return_rates[:-1]
-        return daily_returns
+        """Calculate daily return rate changes"""
+        # Get close prices and holdings data
+        close_prices = portfolio['close'].values
+        holdings = portfolio['holdings'].values
+        
+        # Calculate price changes
+        price_changes = self._calculate_price_changes(close_prices)
+        
+        # Initialize daily returns array
+        daily_returns = np.zeros(len(portfolio))
+        
+        # Calculate daily returns starting from second day
+        for i in range(1, len(portfolio)):
+            # If no position yesterday, return is 0
+            if holdings[i-1] == 0:
+                daily_returns[i] = 0
+            # If had position yesterday, calculate return based on position direction
+            else:
+                daily_returns[i] = price_changes[i] * holdings[i-1]
+        return daily_returns, price_changes
 
-    def calculate_total_return(self, portfolio: pd.DataFrame) -> float:
+    def calculate_cumulative_return(self, portfolio: pd.DataFrame) -> np.ndarray:
         """
-        计算总回报率
+        Calculate cumulative returns for the portfolio.
+        Returns an array where each element represents the cumulative return up to that point.
+        Also updates the portfolio DataFrame with price_change, daily_return and cumulative_return columns.
         """
-        final_value = self._calculate_portfolio_values(portfolio)[-1]
+        daily_returns, price_changes = self._calculate_daily_returns(portfolio)
+        cumulative_returns = np.zeros(len(daily_returns))
         
-        total_return = (final_value - self.initial_investment) / self.initial_investment
+        # 计算每个时点的累积收益
+        for i in range(len(daily_returns)):
+            cumulative_returns[i] = np.sum(daily_returns[:i+1])
         
-        return total_return
+        # 更新portfolio DataFrame
+        portfolio['price_change'] = price_changes
+        portfolio['daily_return'] = daily_returns
+        portfolio['cumulative_return'] = cumulative_returns
+        
+        return cumulative_returns
     
-    def calculate_realized_return(self, portfolio: pd.DataFrame) -> float:
-        """
-        计算已实现回报率
-        """
-        return (portfolio['total'].iloc[-1]) / self.initial_investment
-    
-    def calculate_unrealized_return(self, portfolio: pd.DataFrame) -> float:
-        """
-        计算浮动盈亏回报率
-        """
-        final_value = self._calculate_portfolio_values(portfolio)[-1]
-        return (final_value - portfolio['total'].iloc[-1] - self.initial_investment) / self.initial_investment
+
     
     def calculate_annualized_return(self, portfolio: pd.DataFrame) -> float:
         """
-        计算年化收益率，包括已实现盈亏和浮动盈亏。
+        计算投资组合的年化收益率
         
+        Args:
+            portfolio (pd.DataFrame): 包含交易记录的DataFrame
+            
         Returns:
-            tuple: (总年化收益率, 已实现年化收益率, 浮动盈亏年化收益率)
+            float: 年化收益率
         """
-        total_return = self.calculate_total_return(portfolio)
+        cumulative_returns = self.calculate_cumulative_return(portfolio)
+        total_return = cumulative_returns[-1] if isinstance(cumulative_returns, (list, np.ndarray)) else cumulative_returns
         
-        if 'Date' in portfolio.columns:
-            start_date = pd.to_datetime(portfolio['Date'].iloc[0])
-            end_date = pd.to_datetime(portfolio['Date'].iloc[-1])
-            num_years = (end_date - start_date).days / 365.25
+        # 计算投资期间的总天数
+        start_date = pd.to_datetime(portfolio['Date'].iloc[0])
+        end_date = pd.to_datetime(portfolio['Date'].iloc[-1])
+        days = (end_date - start_date).days
+        
+        # 如果投资期间小于1天,返回0
+        if days < 1:
+            return 0.0
             
-            if num_years > 0:
-                # 计算总年化收益率
-                if total_return > -1:  # 正常情况
-                    total_annualized = (1 + total_return) ** (1 / num_years) - 1
-                else:  # 处理极端亏损情况
-                    total_annualized = total_return / num_years                         
-                return total_annualized
-            
-        return float('nan'), float('nan'), float('nan')
+        # 使用复利公式计算年化收益率
+        # (1 + total_return)^(365/days) - 1
+        annualized_return = (1 + total_return) ** (365.0/days) - 1
+        
+        return annualized_return
 
-    def _calculate_portfolio_values(self, portfolio: pd.DataFrame) -> np.ndarray:
-        """计算每日投资组合市值"""
-        INITIAL_INVESTMENT = 10000
-        return np.where(
-            portfolio['holdings'] == 0,
-            portfolio['total'] + INITIAL_INVESTMENT,  # 无持仓
-            np.where(
-                portfolio['holdings'] > 0,
-                portfolio['holdings'] * portfolio['close'] - portfolio['cost_basis'] + portfolio['total'] + INITIAL_INVESTMENT,  # 多单
-                portfolio['holdings'] * portfolio['close'] + portfolio['cost_basis'] + portfolio['total'] + INITIAL_INVESTMENT  # 空单
-            )
-        )
-    
 
-    def calculate_sharpe_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.05, periods_per_year=365) -> float:
+
+
+    def calculate_sharpe_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.00, periods_per_year=365) -> float:
         """Calculate Sharpe Ratio based on daily return rate changes."""
         try:
-            daily_returns = self._calculate_daily_returns(portfolio)
+            daily_returns = self._calculate_daily_returns(portfolio)[0]
             
             # print("\n=== Returns Analysis ===")
             # print("Daily returns statistics:")
@@ -130,30 +125,31 @@ class PerformanceEvaluator:
         Calculate maximum drawdown considering floating P&L.
         """
         try:
-            # 计算包含浮动盈亏的每日市值
-            daily_value = self._calculate_portfolio_values(portfolio)
+            # 计算累计收益率序列
+            cumulative_returns = self.calculate_cumulative_return(portfolio)
             
-            # 计算历史最高值
-            running_max = np.maximum.accumulate(daily_value)
+            # 计算历史最高点
+            historical_max = pd.Series(cumulative_returns).expanding().max()
             
-            # 计算相对于历史最高值的回撤
-            drawdowns = (daily_value - running_max) / running_max
+            # 计算每个时点的回撤
+            drawdowns = cumulative_returns - historical_max
             
             # 获取最大回撤
-            max_drawdown = drawdowns.min()
+            max_drawdown = min(drawdowns)
             
             return max_drawdown if not np.isnan(max_drawdown) else 0.0
             
         except Exception as e:
-            logging.warning(f"Error calculating max drawdown: {e}")
+            logging.warning(f"计算最大回撤时发生错误: {e}")
             return 0.0
 
 
 
-    def calculate_sortino_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.05, periods_per_year=365) -> float:
+
+    def calculate_sortino_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.00, periods_per_year=365) -> float:
         """Calculate Sortino Ratio using downside deviation."""
         try:
-            daily_returns = self._calculate_daily_returns(portfolio)
+            daily_returns = self._calculate_daily_returns(portfolio)[0]
   
             
             annual_excess_return = np.mean(daily_returns) * periods_per_year - risk_free_rate
@@ -196,9 +192,7 @@ class PerformanceEvaluator:
         计算所有性能指标
         """
         try:
-            total_return = self.calculate_total_return(portfolio)
-            realized_return = self.calculate_realized_return(portfolio)
-            unrealized_return = self.calculate_unrealized_return(portfolio)
+            total_return = self.calculate_cumulative_return(portfolio)[-1]
             annualized_return = self.calculate_annualized_return(portfolio)
             sharpe_ratio = self.calculate_sharpe_ratio(portfolio, periods_per_year=self.periods_per_year)
             sortino_ratio = self.calculate_sortino_ratio(portfolio, periods_per_year=self.periods_per_year)
@@ -207,8 +201,6 @@ class PerformanceEvaluator:
             
             return {
                 'Total Return': total_return,
-                'Realized Return': realized_return,
-                'Unrealized Return': unrealized_return,
                 'Annualized Return': annualized_return,
                 'Sharpe Ratio': sharpe_ratio,
                 'Sortino Ratio': sortino_ratio,
@@ -238,10 +230,8 @@ class PerformanceEvaluator:
         from pyecharts import options as opts
         from pyecharts.charts import Grid, Line, Scatter
         
-        # 使用已有方法计算收益率
-        portfolio['return_rate'] = self._calculate_return_rates(portfolio)
-        
-
+        # 使用calculate_cumulative_return计算累计收益率
+        cumulative_returns = self.calculate_cumulative_return(portfolio)
         
         # Create charts
         returns_chart = Line()
@@ -256,7 +246,7 @@ class PerformanceEvaluator:
         returns_chart.add_xaxis(xaxis_data=dates)
         returns_chart.add_yaxis(
             series_name="Strategy Returns",
-            y_axis=[round(r * 100, 2) for r in portfolio['return_rate']],
+            y_axis=[round(r * 100, 2) for r in cumulative_returns],  # 转换为百分比
             label_opts=opts.LabelOpts(is_show=False),
             linestyle_opts=opts.LineStyleOpts(width=2)
         )
@@ -467,15 +457,12 @@ class PerformanceEvaluator:
         fig = plt.figure(figsize=(15, 10))
         gs = GridSpec(2, 1, height_ratios=[2, 1])
         
-        # 计算每日总市值（包括浮动盈亏）
-        daily_value = self._calculate_portfolio_values(portfolio)
-        
-        # 计算累计收益率
-        portfolio['return_rate'] = (daily_value - self.initial_investment) / self.initial_investment
+        # 使用calculate_cumulative_return计算累计收益率
+        cumulative_returns = self.calculate_cumulative_return(portfolio)
         
         # Upper plot: Cumulative returns
         ax1 = fig.add_subplot(gs[0])
-        ax1.plot(portfolio['Date'], portfolio['return_rate'], 
+        ax1.plot(portfolio['Date'], cumulative_returns, 
                  label='Strategy Returns', color='blue')
         ax1.axhline(y=0, color='r', linestyle='--', alpha=0.3)
         ax1.set_title('Cumulative Returns')

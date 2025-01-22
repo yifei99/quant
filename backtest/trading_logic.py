@@ -6,10 +6,9 @@ class BaseTradingLogic(ABC):
     """
     Abstract base class for trading logic implementations.
     """
-    def __init__(self, commission: float = 0.001, slippage: float = 0.001, trade_amount: float = 10000):
-        self.commission = commission
-        self.slippage = slippage
-        self.trade_amount = trade_amount
+    def __init__(self):
+        pass
+     
 
     @abstractmethod
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
@@ -25,46 +24,24 @@ class BaseTradingLogic(ABC):
         """
         pass
 
-    def _open_long_position(self, portfolio: pd.DataFrame, i: int, price: float):
-        entry_price = price * (1 + self.slippage)
-        shares = self.trade_amount / entry_price / (1 + self.commission)
-        cost = shares * entry_price * (1 + self.commission)
-        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = shares
-        portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = cost
+    def _open_long_position(self, portfolio: pd.DataFrame, i: int):
+        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = 1
 
-    def _open_short_position(self, portfolio: pd.DataFrame, i: int, price: float):
-        entry_price = price * (1 - self.slippage)
-        shares = self.trade_amount / entry_price / (1 + self.commission)
-        cost = shares * entry_price * (1 + self.commission)
-        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = -shares
-        portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = cost
 
-    def _close_long_position(self, portfolio: pd.DataFrame, i: int, price: float):
-        current_holdings = portfolio.iloc[i]['holdings']
-        close_price = price * (1 - self.slippage)
-        profit = (current_holdings * close_price * (1 - self.commission) - 
-                 portfolio.iloc[i]['cost_basis'])
-        portfolio.iloc[i, portfolio.columns.get_loc('total')] += profit
+    def _open_short_position(self, portfolio: pd.DataFrame, i: int):
+        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = -1
+
+    def _close_position(self, portfolio: pd.DataFrame, i: int):
         portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = 0
-        portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = 0
 
-    def _close_short_position(self, portfolio: pd.DataFrame, i: int, price: float):
-        current_holdings = portfolio.iloc[i]['holdings']
-        close_price = price * (1 + self.slippage)
-        
-        profit = portfolio.iloc[i]['cost_basis'] - (-(current_holdings) * close_price * (1 + self.commission))
-        
-        portfolio.iloc[i, portfolio.columns.get_loc('total')] += profit
-        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = 0
-        portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = 0
 
-    def _switch_to_short(self, portfolio: pd.DataFrame, i: int, price: float):
-        self._close_long_position(portfolio, i, price)
-        self._open_short_position(portfolio, i, price)
+    def _switch_to_short(self, portfolio: pd.DataFrame, i: int):
+        self._close_position(portfolio, i)
+        self._open_short_position(portfolio, i)
 
-    def _switch_to_long(self, portfolio: pd.DataFrame, i: int, price: float):
-        self._close_short_position(portfolio, i, price)
-        self._open_long_position(portfolio, i, price) 
+    def _switch_to_long(self, portfolio: pd.DataFrame, i: int):
+        self._close_position(portfolio, i)
+        self._open_long_position(portfolio, i) 
 
 class StandardTradingLogic(BaseTradingLogic):
     """
@@ -88,46 +65,40 @@ class StandardTradingLogic(BaseTradingLogic):
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
         # Initialize portfolio
         portfolio = pd.DataFrame(index=data.index)
-        portfolio['holdings'] = 0.0
-        portfolio['total'] = 0.0
-        portfolio['cost_basis'] = 0.0
+        portfolio['holdings'] = 0
         portfolio['signal'] = signals['signal']
         portfolio['close'] = data['close']
         
         # Simulate trading
         for i in range(len(data)):
-            current_price = data.iloc[i]['close'] 
             signal = signals.iloc[i]['signal']
             
             if i == 0:
-                portfolio.iloc[i, portfolio.columns.get_loc('total')] = 0
                 continue
                 
             # Copy previous day's state (except signal and close)
             portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
-            portfolio.iloc[i, portfolio.columns.get_loc('total')] = portfolio.iloc[i-1]['total']
-            portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = portfolio.iloc[i-1]['cost_basis']
 
             current_holdings = portfolio.iloc[i]['holdings']
             
             # Process signals based on current position
             if current_holdings == 0:  # No position
                 if signal == 1:  # Open long
-                    self._open_long_position(portfolio, i, current_price)
+                    self._open_long_position(portfolio, i)
                 elif signal == -1:  # Open short
-                    self._open_short_position(portfolio, i, current_price)
+                    self._open_short_position(portfolio, i)
                     
             elif current_holdings > 0:  # Long position
                 if signal == -1:  # Switch to short
-                    self._switch_to_short(portfolio, i, current_price)
+                    self._switch_to_short(portfolio, i)
                 elif signal == 0:  # Close position
-                    self._close_long_position(portfolio, i, current_price)
+                    self._close_position(portfolio, i)
                     
             elif current_holdings < 0:  # Short position
                 if signal == 1:  # Switch to long
-                    self._switch_to_long(portfolio, i, current_price)
+                    self._switch_to_long(portfolio, i)
                 elif signal == 0:  # Close position
-                    self._close_short_position(portfolio, i, current_price)
+                    self._close_position(portfolio, i)
         
         portfolio['Date'] = data['Date']
         return portfolio
@@ -154,45 +125,38 @@ class HoldTradingLogic(BaseTradingLogic):
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
         # Initialize portfolio
         portfolio = pd.DataFrame(index=data.index)
-        portfolio['holdings'] = 0.0
-        portfolio['total'] = 0.0
-        portfolio['cost_basis'] = 0.0
+        portfolio['holdings'] = 0
         portfolio['signal'] = signals['signal']
         portfolio['close'] = data['close']
         
         # Simulate trading
         for i in range(len(data)):
-            current_price = data.iloc[i]['close'] 
             signal = signals.iloc[i]['signal']
             
             if i == 0:
-                portfolio.iloc[i, portfolio.columns.get_loc('total')] = 0
                 continue
                 
             # Copy previous day's state (except signal and close)
             portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
-            portfolio.iloc[i, portfolio.columns.get_loc('total')] = portfolio.iloc[i-1]['total']
-            portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = portfolio.iloc[i-1]['cost_basis']
 
             current_holdings = portfolio.iloc[i]['holdings']
             
             # Process signals based on current position
             if current_holdings == 0:  # No position
                 if signal == 1:  # Open long
-                    self._open_long_position(portfolio, i, current_price)
+                    self._open_long_position(portfolio, i)
                 elif signal == -1:  # Open short
-                    self._open_short_position(portfolio, i, current_price)
+                    self._open_short_position(portfolio, i)
                     
             elif current_holdings > 0:  # Long position
                 if signal == -1:  # Switch to short
-                    self._switch_to_short(portfolio, i, current_price)
+                    self._switch_to_short(portfolio, i)
          
                     
             elif current_holdings < 0:  # Short position
                 if signal == 1:  # Switch to long
-                    self._switch_to_long(portfolio, i, current_price)
-
-        
+                    self._switch_to_long(portfolio, i)
+         
         portfolio['Date'] = data['Date']
         return portfolio
 
@@ -213,36 +177,30 @@ class LongOnlyTradingLogic(BaseTradingLogic):
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
         # Initialize portfolio
         portfolio = pd.DataFrame(index=data.index)
-        portfolio['holdings'] = 0.0
-        portfolio['total'] = 0.0
-        portfolio['cost_basis'] = 0.0
+        portfolio['holdings'] = 0
         portfolio['signal'] = signals['signal']
         portfolio['close'] = data['close']
         
         # Simulate trading
         for i in range(len(data)):
-            current_price = data.iloc[i]['close'] 
             signal = signals.iloc[i]['signal']
             
             if i == 0:
-                portfolio.iloc[i, portfolio.columns.get_loc('total')] = 0
                 continue
                 
             # Copy previous day's state (except signal and close)
             portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
-            portfolio.iloc[i, portfolio.columns.get_loc('total')] = portfolio.iloc[i-1]['total']
-            portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = portfolio.iloc[i-1]['cost_basis']
 
             current_holdings = portfolio.iloc[i]['holdings']
             
             # Process signals based on current position
             if current_holdings == 0:  # No position
                 if signal == 1:  # Open long
-                    self._open_long_position(portfolio, i, current_price)
+                    self._open_long_position(portfolio, i)
                     
             elif current_holdings > 0:  # Long position
                 if signal == -1:  # Close position
-                    self._close_long_position(portfolio, i, current_price)
+                    self._close_position(portfolio, i)
 
         
         portfolio['Date'] = data['Date']
@@ -265,36 +223,30 @@ class ShortOnlyTradingLogic(BaseTradingLogic):
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
         # Initialize portfolio
         portfolio = pd.DataFrame(index=data.index)
-        portfolio['holdings'] = 0.0
-        portfolio['total'] = 0.0
-        portfolio['cost_basis'] = 0.0
+        portfolio['holdings'] = 0
         portfolio['signal'] = signals['signal']
         portfolio['close'] = data['close']
-        
+
         # Simulate trading
         for i in range(len(data)):
-            current_price = data.iloc[i]['close'] 
             signal = signals.iloc[i]['signal']
             
             if i == 0:
-                portfolio.iloc[i, portfolio.columns.get_loc('total')] = 0
                 continue
                 
             # Copy previous day's state (except signal and close)
             portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
-            portfolio.iloc[i, portfolio.columns.get_loc('total')] = portfolio.iloc[i-1]['total']
-            portfolio.iloc[i, portfolio.columns.get_loc('cost_basis')] = portfolio.iloc[i-1]['cost_basis']
 
             current_holdings = portfolio.iloc[i]['holdings']
             
             # Process signals based on current position
             if current_holdings == 0:  # No position
                 if signal == -1:  # Open short
-                    self._open_short_position(portfolio, i, current_price)
+                    self._open_short_position(portfolio, i)
                     
             elif current_holdings < 0:    # Short position
                 if signal == 1:  # Close position
-                    self._close_short_position(portfolio, i, current_price)
+                    self._close_position(portfolio, i)
 
         
         portfolio['Date'] = data['Date']

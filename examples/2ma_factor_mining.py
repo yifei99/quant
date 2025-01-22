@@ -102,7 +102,7 @@ def main():
         else:
             raise ValueError("Invalid logic_type. Must be 1, 2 or 3.")
             
-    logic = get_trading_logic(logic_type=1)
+    logic = get_trading_logic(logic_type=2)
     engine = BacktestEngine(
         initial_capital=10000.0,
         commission=0.001,

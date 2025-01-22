@@ -13,9 +13,6 @@ class BacktestEngine:
     Backtest engine, responsible for executing strategies and tracking portfolios.
     """
     def __init__(self, 
-                 initial_capital: float = 10000.0,
-                 commission: float = 0.001,
-                 slippage: float = 0.001,
                  trading_logic: BaseTradingLogic = None,
                  periods_per_year: int = 365):
         """
@@ -28,17 +25,12 @@ class BacktestEngine:
             trading_logic: Trading logic instance
             periods_per_year: Number of periods in a year (e.g., 365 for daily, 52 for weekly, 12 for monthly)
         """
-        self.initial_capital = initial_capital
-        self.commission = commission
-        self.slippage = slippage
         self.periods_per_year = periods_per_year
         
         if trading_logic:
-            trading_logic.commission = commission
-            trading_logic.slippage = slippage
             self.trading_logic = trading_logic
         else:
-            self.trading_logic = StandardTradingLogic(commission, slippage)
+            self.trading_logic = StandardTradingLogic()
             
         self.logger = logging.getLogger(__name__)
 
@@ -56,10 +48,12 @@ class BacktestEngine:
         # Execute trades using trading logic
         portfolio = self.trading_logic.execute_trades(data, signals)
         
+        # 重新组织DataFrame的展示格式
+        portfolio = portfolio[['Date', 'close', 'signal', 'holdings']]
+        
         # Add visualization
         if plot:
             evaluator = PerformanceEvaluator(
-                initial_investment=self.initial_capital,
                 periods_per_year=self.periods_per_year
             )
             evaluator.plot_performance(portfolio, data)
