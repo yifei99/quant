@@ -24,23 +24,7 @@ class BaseTradingLogic(ABC):
         """
         pass
 
-    def _open_long_position(self, portfolio: pd.DataFrame, i: int):
-        """使用向量化操作设置持仓"""
-        portfolio.loc[i, 'holdings'] = 1
 
-    def _open_short_position(self, portfolio: pd.DataFrame, i: int):
-        portfolio.loc[i, 'holdings'] = -1
-
-    def _close_position(self, portfolio: pd.DataFrame, i: int):
-        portfolio.loc[i, 'holdings'] = 0
-
-    def _switch_to_short(self, portfolio: pd.DataFrame, i: int):
-        self._close_position(portfolio, i)
-        self._open_short_position(portfolio, i)
-
-    def _switch_to_long(self, portfolio: pd.DataFrame, i: int):
-        self._close_position(portfolio, i)
-        self._open_long_position(portfolio, i) 
 
 class StandardTradingLogic(BaseTradingLogic):
     """
