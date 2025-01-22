@@ -20,24 +20,18 @@ class PerformanceEvaluator:
 
     def _calculate_daily_returns(self, portfolio: pd.DataFrame) -> np.ndarray:
         """Calculate daily return rate changes"""
-        # Get close prices and holdings data
+        # 使用向量化操作替代循环
         close_prices = portfolio['close'].values
         holdings = portfolio['holdings'].values
         
-        # Calculate price changes
-        price_changes = self._calculate_price_changes(close_prices)
+        # 计算价格变化率
+        price_changes = np.zeros(len(close_prices))
+        price_changes[1:] = close_prices[1:]/close_prices[:-1] - 1
         
-        # Initialize daily returns array
+        # 计算收益率
         daily_returns = np.zeros(len(portfolio))
+        daily_returns[1:] = price_changes[1:] * holdings[:-1]
         
-        # Calculate daily returns starting from second day
-        for i in range(1, len(portfolio)):
-            # If no position yesterday, return is 0
-            if holdings[i-1] == 0:
-                daily_returns[i] = 0
-            # If had position yesterday, calculate return based on position direction
-            else:
-                daily_returns[i] = price_changes[i] * holdings[i-1]
         return daily_returns, price_changes
 
     def calculate_cumulative_return(self, portfolio: pd.DataFrame) -> np.ndarray:
@@ -47,11 +41,9 @@ class PerformanceEvaluator:
         Also updates the portfolio DataFrame with price_change, daily_return and cumulative_return columns.
         """
         daily_returns, price_changes = self._calculate_daily_returns(portfolio)
-        cumulative_returns = np.zeros(len(daily_returns))
         
-        # 计算每个时点的累积收益
-        for i in range(len(daily_returns)):
-            cumulative_returns[i] = np.sum(daily_returns[:i+1])
+        # 使用cumsum替代循环
+        cumulative_returns = np.cumsum(daily_returns)
         
         # 更新portfolio DataFrame
         portfolio['price_change'] = price_changes
@@ -72,76 +64,105 @@ class PerformanceEvaluator:
         Returns:
             float: 年化收益率
         """
-        cumulative_returns = self.calculate_cumulative_return(portfolio)
-        total_return = cumulative_returns[-1] if isinstance(cumulative_returns, (list, np.ndarray)) else cumulative_returns
-        
-        # 计算投资期间的总天数
-        start_date = pd.to_datetime(portfolio['Date'].iloc[0])
-        end_date = pd.to_datetime(portfolio['Date'].iloc[-1])
-        days = (end_date - start_date).days
-        
-        # 如果投资期间小于1天,返回0
-        if days < 1:
-            return 0.0
+        try:
+            cumulative_returns = self.calculate_cumulative_return(portfolio)
+            total_return = cumulative_returns[-1] if isinstance(cumulative_returns, (list, np.ndarray)) else cumulative_returns
             
-        # 使用复利公式计算年化收益率
-        # (1 + total_return)^(365/days) - 1
-        annualized_return = (1 + total_return) ** (365.0/days) - 1
+            # 计算投资期间的总天数
+            start_date = pd.to_datetime(portfolio['Date'].iloc[0])
+            end_date = pd.to_datetime(portfolio['Date'].iloc[-1])
+            days = (end_date - start_date).days
+            
+            # 如果投资期间小于1天,返回0
+            if days < 1:
+                return 0.0
+            
+            # 使用改进的年化收益率计算方法
+            if total_return < 0:
+                # 对于负收益，使用对称的计算方法
+                positive_return = abs(total_return)
+                positive_annualized = (1 + positive_return) ** (365.0/days) - 1
+                annualized_return = -positive_annualized
+            else:
+                # 对于正收益，使用标准公式
+                annualized_return = (1 + total_return) ** (365.0/days) - 1
+            
+            return annualized_return
+            
+        except Exception as e:
+            logging.warning(f"计算年化收益率时发生错误: {e}")
+            return 0.0
+
+
+
+
+    def calculate_sharpe_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0, periods_per_year=365) -> float:
+        """
+        Calculate Sharpe Ratio based on daily return rate changes.
         
-        return annualized_return
-
-
-
-
-    def calculate_sharpe_ratio(self, portfolio: pd.DataFrame, risk_free_rate=0.00, periods_per_year=365) -> float:
-        """Calculate Sharpe Ratio based on daily return rate changes."""
+        When risk_free_rate=0:
+            Sharpe = (mean(daily_returns) / std(daily_returns)) * sqrt(periods_per_year)
+        Otherwise:
+            Sharpe = (annualized_return - risk_free_rate) / (std(daily_returns) * sqrt(periods_per_year))
+        """
         try:
             daily_returns = self._calculate_daily_returns(portfolio)[0]
             
-            # print("\n=== Returns Analysis ===")
-            # print("Daily returns statistics:")
-            # print(pd.Series(daily_returns).describe())
-            # print(f"Cumulative return: {self._calculate_return_rates(portfolio)[-1]:.4f}")
+            # 计算标准差
+            returns_std = np.std(daily_returns)
             
-            # 计算年化超额收益和波动率
-            annual_excess_return = np.mean(daily_returns) * periods_per_year - risk_free_rate
-            annual_volatility = np.std(daily_returns) * np.sqrt(periods_per_year)
-            # print("\n=== Sharpe Ratio Components ===")
-            # print(f"Annual excess return: {annual_excess_return:.4f}")
-            # print(f"Annual volatility: {annual_volatility:.4f}")
+            # 如果标准差为0或接近0，说明收益率几乎没有波动
+            if returns_std == 0 or np.isclose(returns_std, 0):
+                # 如果平均收益为正，返回一个较大的值（比如100）表示非常好的风险调整收益
+                # 如果平均收益为负或0，返回0
+                mean_return = np.mean(daily_returns)
+                return 100.0 if mean_return > 0 else 0.0
             
-            if annual_volatility == 0 or np.isnan(annual_volatility):
-                return 0.0
+            # 计算夏普比率
+            if risk_free_rate == 0:
+                # 简化计算: mean/std * sqrt(periods)
+                sharpe_ratio = (np.mean(daily_returns) / returns_std) * np.sqrt(periods_per_year)
+            else:
+                # 计算年化收益和波动率
+                annual_return = np.mean(daily_returns) * periods_per_year
+                annual_volatility = returns_std * np.sqrt(periods_per_year)
                 
-            sharpe_ratio = annual_excess_return / annual_volatility
-            return sharpe_ratio if not (np.isinf(sharpe_ratio) or np.isnan(sharpe_ratio)) else 0.0
+                # 标准计算: (annualized_return - rf) / annualized_volatility
+                sharpe_ratio = (annual_return - risk_free_rate) / annual_volatility
+            
+            # 处理无效值
+            if np.isinf(sharpe_ratio) or np.isnan(sharpe_ratio):
+                return 0.0
+            
+            return sharpe_ratio
             
         except Exception as e:
             logging.warning(f"Error calculating Sharpe ratio: {e}")
             return 0.0
 
-    def calculate_max_drawdown(self, portfolio: pd.DataFrame) -> float:
-        """
-        Calculate maximum drawdown considering floating P&L.
-        """
+    def calculate_max_drawdown(self, portfolio: pd.DataFrame) -> tuple:
+        """Calculate maximum drawdown and its occurrence time."""
         try:
-            # 计算累计收益率序列
             cumulative_returns = self.calculate_cumulative_return(portfolio)
             
-            # 计算历史最高点
-            historical_max = pd.Series(cumulative_returns).expanding().max()
+            # 使用向量化操作计算回撤
+            rolling_max = np.maximum.accumulate(cumulative_returns)
+            drawdowns = cumulative_returns - rolling_max
             
-            # 计算每个时点的回撤
-            drawdowns = cumulative_returns - historical_max
+            # 获取最大回撤及其位置
+            max_drawdown_idx = np.argmin(drawdowns)
+            max_drawdown = drawdowns[max_drawdown_idx]
             
-            # 获取最大回撤
-            max_drawdown = min(drawdowns)
+            # 找到峰值位置
+            peak_idx = np.argmax(cumulative_returns[:max_drawdown_idx+1])
             
-            return max_drawdown if not np.isnan(max_drawdown) else 0.0
+            return (max_drawdown if not np.isnan(max_drawdown) else 0.0,
+                    portfolio['Date'].iloc[peak_idx],
+                    portfolio['Date'].iloc[max_drawdown_idx])
             
         except Exception as e:
             logging.warning(f"计算最大回撤时发生错误: {e}")
-            return 0.0
+            return 0.0, None, None
 
 
 
@@ -176,16 +197,10 @@ class PerformanceEvaluator:
             return 0.0
 
     def calculate_trade_count(self, portfolio: pd.DataFrame) -> int:
-        """
-        Calculate the actual number of trades by counting position changes.
-        """
-        # Get position changes
-        position_changes = portfolio['holdings'].diff()
-        
-        # Count actual trades (when holdings actually change)
-        trade_count = len(position_changes[position_changes != 0])-1
-        
-        return trade_count
+        """Calculate the actual number of trades."""
+        # 使用向量化操作计算持仓变化
+        position_changes = np.diff(portfolio['holdings'].values)
+        return np.count_nonzero(position_changes)
 
     def calculate_performance_metrics(self, portfolio: pd.DataFrame) -> dict:
         """
@@ -196,7 +211,7 @@ class PerformanceEvaluator:
             annualized_return = self.calculate_annualized_return(portfolio)
             sharpe_ratio = self.calculate_sharpe_ratio(portfolio, periods_per_year=self.periods_per_year)
             sortino_ratio = self.calculate_sortino_ratio(portfolio, periods_per_year=self.periods_per_year)
-            max_drawdown = self.calculate_max_drawdown(portfolio)
+            max_drawdown, peak_date, bottom_date = self.calculate_max_drawdown(portfolio)
             trade_count = self.calculate_trade_count(portfolio)
             
             return {
@@ -274,8 +289,15 @@ class PerformanceEvaluator:
             )
         ]
         
+        # 获取最大回撤信息
+        max_drawdown, peak_date, bottom_date = self.calculate_max_drawdown(portfolio)
+        
+        # 修改标题以包含最大回撤信息
         returns_chart.set_global_opts(
-            title_opts=opts.TitleOpts(title="Strategy Performance"),
+            title_opts=opts.TitleOpts(
+                title="Strategy Performance",
+                subtitle=f"Max Drawdown: {max_drawdown:.2%} ({peak_date.strftime('%Y-%m-%d')} to {bottom_date.strftime('%Y-%m-%d')})"
+            ),
             xaxis_opts=common_xaxis_opts,
             yaxis_opts=opts.AxisOpts(
                 name="Return Rate (%)",
@@ -283,7 +305,37 @@ class PerformanceEvaluator:
                 is_scale=True
             ),
             datazoom_opts=common_datazoom_opts,
-            tooltip_opts=opts.TooltipOpts(trigger="axis")
+            tooltip_opts=opts.TooltipOpts(
+                trigger="axis",
+                axis_pointer_type="cross"
+            ),
+            legend_opts=opts.LegendOpts(
+                pos_top="5%",
+                pos_left="center"
+            )
+        )
+        
+        # 在收益率图表中添加最大回撤标记
+        returns_chart.set_series_opts(
+            markarea_opts=opts.MarkAreaOpts(
+                data=[
+                    [
+                        {
+                            "name": f"Max Drawdown: {max_drawdown:.2%}", 
+                            "xAxis": peak_date.strftime("%Y-%m-%d"),
+                            "itemStyle": {"color": "rgba(255, 0, 0, 0.2)"}
+                        },
+                        {
+                            "xAxis": bottom_date.strftime("%Y-%m-%d")
+                        }
+                    ]
+                ],
+                label_opts=opts.LabelOpts(
+                    position="middle",
+                    font_size=12,
+                    color="red"
+                )
+            )
         )
         
         # Configure price chart
@@ -426,7 +478,7 @@ class PerformanceEvaluator:
             tooltip_opts=opts.TooltipOpts(trigger="axis")
         )
         
-        # Create grid to combine charts
+        # 调整网格布局，增加间距
         grid = Grid(
             init_opts=opts.InitOpts(
                 width="1200px",
@@ -435,14 +487,21 @@ class PerformanceEvaluator:
             )
         )
         
-        # Add charts to grid
         grid.add(
             returns_chart,
-            grid_opts=opts.GridOpts(pos_top="5%", height="45%")
+            grid_opts=opts.GridOpts(
+                pos_top="10%",  # 增加顶部空间
+                height="38%",   # 减小高度以增加间距
+                tooltip_opts=opts.TooltipOpts(trigger="axis")
+            )
         )
         grid.add(
             price_chart.overlap(scatter_buy).overlap(scatter_sell),
-            grid_opts=opts.GridOpts(pos_bottom="8%", height="45%")
+            grid_opts=opts.GridOpts(
+                pos_bottom="8%",
+                height="38%",   # 减小高度以增加间距
+                tooltip_opts=opts.TooltipOpts(trigger="axis")
+            )
         )
         
         # Save to HTML file
@@ -524,8 +583,42 @@ class PerformanceEvaluator:
         
         ax2.legend()
         
-        # Adjust layout
-        plt.tight_layout()
+        # 获取最大回撤信息
+        max_drawdown, peak_date, bottom_date = self.calculate_max_drawdown(portfolio)
+        
+        # 在收益率图表中添加最大回撤标记
+        ax1.axvspan(peak_date, bottom_date, 
+                    alpha=0.2, color='red')
+        
+        # 添加最大回撤文本标注
+        mid_date = peak_date + (bottom_date - peak_date) / 2
+        
+        # 修改这部分代码，使用布尔索引而不是iloc
+        peak_idx = (portfolio['Date'] == peak_date).argmax()
+        bottom_idx = (portfolio['Date'] == bottom_date).argmax()
+        mid_value = (cumulative_returns[peak_idx] + cumulative_returns[bottom_idx]) / 2
+        
+        # 添加标注
+        ax1.annotate(f'Max Drawdown: {max_drawdown:.2%}\n{peak_date.strftime("%Y-%m-%d")}\nto\n{bottom_date.strftime("%Y-%m-%d")}',
+                    xy=(mid_date, mid_value),
+                    xytext=(30, 30),  # 调整文本位置，避免遮挡
+                    textcoords='offset points',
+                    ha='left',
+                    va='bottom',
+                    bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+                    arrowprops=dict(arrowstyle='->',
+                                  connectionstyle='arc3,rad=0.2'))  # 调整箭头样式
+        
+        # 在最大回撤的起点和终点添加垂直线
+        ax1.axvline(x=peak_date, color='red', linestyle='--', alpha=0.5)
+        ax1.axvline(x=bottom_date, color='red', linestyle='--', alpha=0.5)
+        
+        # 调整图例位置
+        ax1.legend(loc='upper left', bbox_to_anchor=(0.02, 0.98))
+        ax2.legend(loc='upper left', bbox_to_anchor=(0.02, 0.98))
+        
+        # Adjust layout with more space
+        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         
         # Save plot
         plt.savefig('strategy_performance.png', dpi=300, bbox_inches='tight')

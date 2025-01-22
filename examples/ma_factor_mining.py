@@ -40,9 +40,9 @@ def main():
     try:
         data = data_loader.load_data(
             exchange="binance",
-            symbol="BTCUSDT",
+            symbol="SOLUSDT",
             interval="1d",
-            start_date="2021-03-31",
+            start_date="2022-1-01",
             end_date="2024-12-31",
             data_type="spot"
         )
@@ -71,33 +71,30 @@ def main():
     #     name='usd_volume_ma', 
     #     ma_period=7
     # )
-    # ma_factor = PriceMaFactor(
-    #     name='price_ma', 
-    #     ma_period=7
-    # )
-    ma_factor = AssetVolumeMaFactor(
-        name='asset_volume_ma', 
+    ma_factor = PriceMaFactor(
+        name='price_ma', 
         ma_period=7
     )
+    # ma_factor = AssetVolumeMaFactor(
+    #     name='asset_volume_ma', 
+    #     ma_period=7
+    # )
     factor_engine.register_factor(ma_factor)
 
     strategy = FactorBasedStrategy(factors=[ma_factor])
-    def get_trading_logic(logic_type=1, commission=0.001, slippage=0.001):
+    def get_trading_logic(logic_type=1):
         if logic_type == 1:
-            return HoldTradingLogic(commission=commission, slippage=slippage)
+            return HoldTradingLogic()
         elif logic_type == 2:
-            return LongOnlyTradingLogic(commission=commission, slippage=slippage)
+            return LongOnlyTradingLogic()
         elif logic_type == 3:
-            return ShortOnlyTradingLogic(commission=commission, slippage=slippage)
+            return ShortOnlyTradingLogic()
         else:
             raise ValueError("Invalid logic_type. Must be 1, 2 or 3.")
             
     logic = get_trading_logic(logic_type=3)
     engine = BacktestEngine(
-        initial_capital=10000.0,
-        commission=0.001,
-        slippage=0.001,
-        trading_logic=logic,
+        trading_logic=logic
     )
     evaluator = PerformanceEvaluator()
 
@@ -124,8 +121,8 @@ def main():
         n_jobs = -1  # 使用 CPU核心数-1
 
         # factor_class = UsdVolumeMaFactor
-        # factor_class = PriceMaFactor
-        factor_class = AssetVolumeMaFactor
+        factor_class = PriceMaFactor
+        # factor_class = AssetVolumeMaFactor
 
         logger.info("Starting parameter optimization...")
         optimization_results = optimizer.optimize_thresholds(
@@ -133,7 +130,8 @@ def main():
             threshold_params=threshold_params,
             factor_class=factor_class,
             strategy_class=FactorBasedStrategy,
-            n_jobs=n_jobs  # 修改参数名
+            n_jobs=n_jobs,
+            enforce_threshold_order=False
         )
         
 

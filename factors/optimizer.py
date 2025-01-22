@@ -148,7 +148,7 @@ class StrategyOptimizer:
         optimal_metrics = optimal_combination[1]['metrics']
         
         # 使用最优参数运行一次回测并生成图表
-        factor = factor_class(name='usdt_issuance', **optimal_params)
+        factor = factor_class(name=factor_class.__name__, **optimal_params)
         factor_engine = FactorEngine()
         factor_engine.register_factor(factor)
         strategy = strategy_class(factors=[factor])

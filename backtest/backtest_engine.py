@@ -48,8 +48,6 @@ class BacktestEngine:
         # Execute trades using trading logic
         portfolio = self.trading_logic.execute_trades(data, signals)
         
-        # 重新组织DataFrame的展示格式
-        portfolio = portfolio[['Date', 'close', 'signal', 'holdings']]
         
         # Add visualization
         if plot:
@@ -57,5 +55,8 @@ class BacktestEngine:
                 periods_per_year=self.periods_per_year
             )
             evaluator.plot_performance(portfolio, data)
+
+        # 重新组织DataFrame的展示格式
+        portfolio = portfolio[['Date', 'close', 'signal', 'holdings']]
         
         return portfolio

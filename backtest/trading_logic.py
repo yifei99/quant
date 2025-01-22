@@ -25,15 +25,14 @@ class BaseTradingLogic(ABC):
         pass
 
     def _open_long_position(self, portfolio: pd.DataFrame, i: int):
-        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = 1
-
+        """使用向量化操作设置持仓"""
+        portfolio.loc[i, 'holdings'] = 1
 
     def _open_short_position(self, portfolio: pd.DataFrame, i: int):
-        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = -1
+        portfolio.loc[i, 'holdings'] = -1
 
     def _close_position(self, portfolio: pd.DataFrame, i: int):
-        portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = 0
-
+        portfolio.loc[i, 'holdings'] = 0
 
     def _switch_to_short(self, portfolio: pd.DataFrame, i: int):
         self._close_position(portfolio, i)
@@ -63,64 +62,48 @@ class StandardTradingLogic(BaseTradingLogic):
     - Signal 0: Close position
     """
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
-        # Initialize portfolio
+        """
+        Execute trades based on signals and current market data.
+        使用向量化操作优化性能
+        """
+        # 初始化 portfolio
         portfolio = pd.DataFrame(index=data.index)
         portfolio['holdings'] = 0
         portfolio['signal'] = signals['signal']
         portfolio['close'] = data['close']
-        
-        # Simulate trading
-        for i in range(len(data)):
-            signal = signals.iloc[i]['signal']
-            
-            if i == 0:
-                continue
-                
-            # Copy previous day's state (except signal and close)
-            portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
-
-            current_holdings = portfolio.iloc[i]['holdings']
-            
-            # Process signals based on current position
-            if current_holdings == 0:  # No position
-                if signal == 1:  # Open long
-                    self._open_long_position(portfolio, i)
-                elif signal == -1:  # Open short
-                    self._open_short_position(portfolio, i)
-                    
-            elif current_holdings > 0:  # Long position
-                if signal == -1:  # Switch to short
-                    self._switch_to_short(portfolio, i)
-                elif signal == 0:  # Close position
-                    self._close_position(portfolio, i)
-                    
-            elif current_holdings < 0:  # Short position
-                if signal == 1:  # Switch to long
-                    self._switch_to_long(portfolio, i)
-                elif signal == 0:  # Close position
-                    self._close_position(portfolio, i)
-        
         portfolio['Date'] = data['Date']
+        
+        # 获取所有信号和持仓的numpy数组，提高访问速度
+        signal_array = signals['signal'].values
+        holdings_array = portfolio['holdings'].values
+        
+        # 跳过第一天
+        for i in range(1, len(data)):
+            # 复制前一天的持仓
+            holdings_array[i] = holdings_array[i-1]
+            
+            signal = signal_array[i]
+            current_holdings = holdings_array[i]
+            
+            # 使用布尔运算替代多个if-else
+            if current_holdings == 0:  # 无仓位
+                holdings_array[i] = np.where(signal == 1, 1,
+                                  np.where(signal == -1, -1, 0))
+            elif current_holdings > 0:  # 多仓
+                holdings_array[i] = np.where(signal == -1, -1,
+                                  np.where(signal == 0, 0, 1))
+            else:  # 空仓
+                holdings_array[i] = np.where(signal == 1, 1,
+                                  np.where(signal == 0, 0, -1))
+        
+        # 更新portfolio的holdings列
+        portfolio['holdings'] = holdings_array
+        
         return portfolio
 
 class HoldTradingLogic(BaseTradingLogic):
     """
-    Hold trading logic implementation with the following rules:
-    
-    No Position:
-    - Signal 1: Open long position
-    - Signal -1: Open short position
-    - Signal 0: No action
-    
-    Long Position:
-    - Signal 1: No action
-    - Signal -1: Switch to short
-    - Signal 0: No action
-    
-    Short Position:
-    - Signal 1: Switch to long
-    - Signal -1: No action
-    - Signal 0: No action
+    Hold trading logic implementation.
     """
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
         # Initialize portfolio
@@ -128,51 +111,36 @@ class HoldTradingLogic(BaseTradingLogic):
         portfolio['holdings'] = 0
         portfolio['signal'] = signals['signal']
         portfolio['close'] = data['close']
-        
-        # Simulate trading
-        for i in range(len(data)):
-            signal = signals.iloc[i]['signal']
-            
-            if i == 0:
-                continue
-                
-            # Copy previous day's state (except signal and close)
-            portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
-
-            current_holdings = portfolio.iloc[i]['holdings']
-            
-            # Process signals based on current position
-            if current_holdings == 0:  # No position
-                if signal == 1:  # Open long
-                    self._open_long_position(portfolio, i)
-                elif signal == -1:  # Open short
-                    self._open_short_position(portfolio, i)
-                    
-            elif current_holdings > 0:  # Long position
-                if signal == -1:  # Switch to short
-                    self._switch_to_short(portfolio, i)
-         
-                    
-            elif current_holdings < 0:  # Short position
-                if signal == 1:  # Switch to long
-                    self._switch_to_long(portfolio, i)
-         
         portfolio['Date'] = data['Date']
+        
+        # 获取numpy数组以提高性能
+        signal_array = signals['signal'].values
+        holdings_array = portfolio['holdings'].values
+        
+        # 跳过第一天
+        for i in range(1, len(data)):
+            # 复制前一天的持仓
+            holdings_array[i] = holdings_array[i-1]
+            
+            signal = signal_array[i]
+            current_holdings = holdings_array[i]
+            
+            # 使用向量化操作处理信号
+            if current_holdings == 0:  # 无仓位
+                holdings_array[i] = np.where(signal == 1, 1,
+                                  np.where(signal == -1, -1, 0))
+            elif current_holdings > 0:  # 多仓
+                holdings_array[i] = np.where(signal == -1, -1, 1)
+            else:  # 空仓
+                holdings_array[i] = np.where(signal == 1, 1, -1)
+        
+        # 更新portfolio
+        portfolio['holdings'] = holdings_array
         return portfolio
 
 class LongOnlyTradingLogic(BaseTradingLogic):
     """
-    Long Only trading logic implementation with the following rules:
-
-    No Position:
-    - Signal 1: Open long position
-    - Signal -1: No action
-    - Signal 0: No action
-    
-    Long Position:
-    - Signal 1: No action
-    - Signal -1: Close position
-    - Signal 0: No action
+    Long Only trading logic implementation.
     """
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
         # Initialize portfolio
@@ -180,45 +148,33 @@ class LongOnlyTradingLogic(BaseTradingLogic):
         portfolio['holdings'] = 0
         portfolio['signal'] = signals['signal']
         portfolio['close'] = data['close']
-        
-        # Simulate trading
-        for i in range(len(data)):
-            signal = signals.iloc[i]['signal']
-            
-            if i == 0:
-                continue
-                
-            # Copy previous day's state (except signal and close)
-            portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
-
-            current_holdings = portfolio.iloc[i]['holdings']
-            
-            # Process signals based on current position
-            if current_holdings == 0:  # No position
-                if signal == 1:  # Open long
-                    self._open_long_position(portfolio, i)
-                    
-            elif current_holdings > 0:  # Long position
-                if signal == -1:  # Close position
-                    self._close_position(portfolio, i)
-
-        
         portfolio['Date'] = data['Date']
+        
+        # 获取numpy数组以提高性能
+        signal_array = signals['signal'].values
+        holdings_array = portfolio['holdings'].values
+        
+        # 跳过第一天
+        for i in range(1, len(data)):
+            # 复制前一天的持仓
+            holdings_array[i] = holdings_array[i-1]
+            
+            signal = signal_array[i]
+            current_holdings = holdings_array[i]
+            
+            # 使用向量化操作处理信号
+            if current_holdings == 0:  # 无仓位
+                holdings_array[i] = np.where(signal == 1, 1, 0)
+            elif current_holdings > 0:  # 多仓
+                holdings_array[i] = np.where(signal == -1, 0, 1)
+        
+        # 更新portfolio
+        portfolio['holdings'] = holdings_array
         return portfolio
 
 class ShortOnlyTradingLogic(BaseTradingLogic):
     """
-    Short Only trading logic implementation with the following rules:
-
-    No Position:
-    - Signal 1: No action
-    - Signal -1: Open short position
-    - Signal 0: No action
-    
-    Short Position:
-    - Signal 1: Close position
-    - Signal -1: No action
-    - Signal 0: No action
+    Short Only trading logic implementation.
     """
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
         # Initialize portfolio
@@ -226,28 +182,26 @@ class ShortOnlyTradingLogic(BaseTradingLogic):
         portfolio['holdings'] = 0
         portfolio['signal'] = signals['signal']
         portfolio['close'] = data['close']
-
-        # Simulate trading
-        for i in range(len(data)):
-            signal = signals.iloc[i]['signal']
-            
-            if i == 0:
-                continue
-                
-            # Copy previous day's state (except signal and close)
-            portfolio.iloc[i, portfolio.columns.get_loc('holdings')] = portfolio.iloc[i-1]['holdings']
-
-            current_holdings = portfolio.iloc[i]['holdings']
-            
-            # Process signals based on current position
-            if current_holdings == 0:  # No position
-                if signal == -1:  # Open short
-                    self._open_short_position(portfolio, i)
-                    
-            elif current_holdings < 0:    # Short position
-                if signal == 1:  # Close position
-                    self._close_position(portfolio, i)
-
-        
         portfolio['Date'] = data['Date']
+        
+        # 获取numpy数组以提高性能
+        signal_array = signals['signal'].values
+        holdings_array = portfolio['holdings'].values
+        
+        # 跳过第一天
+        for i in range(1, len(data)):
+            # 复制前一天的持仓
+            holdings_array[i] = holdings_array[i-1]
+            
+            signal = signal_array[i]
+            current_holdings = holdings_array[i]
+            
+            # 使用向量化操作处理信号
+            if current_holdings == 0:  # 无仓位
+                holdings_array[i] = np.where(signal == -1, -1, 0)
+            elif current_holdings < 0:  # 空仓
+                holdings_array[i] = np.where(signal == 1, 0, -1)
+        
+        # 更新portfolio
+        portfolio['holdings'] = holdings_array
         return portfolio
