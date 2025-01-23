@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+# import time
 import pandas as pd
 import numpy as np
 
@@ -63,6 +64,7 @@ class StandardTradingLogic(BaseTradingLogic):
         
         # 跳过第一天
         for i in range(1, len(data)):
+            start_time = time.time()
             # 复制前一天的持仓
             holdings_array[i] = holdings_array[i-1]
             
@@ -80,6 +82,8 @@ class StandardTradingLogic(BaseTradingLogic):
                 holdings_array[i] = np.where(signal == 1, 1,
                                   np.where(signal == 0, 0, -1))
         
+            end_time = time.time()
+            print(f"Time taken: {end_time - start_time} seconds")
         # 更新portfolio的holdings列
         portfolio['holdings'] = holdings_array
         
@@ -102,6 +106,8 @@ class HoldTradingLogic(BaseTradingLogic):
         holdings_array = portfolio['holdings'].values
         
         # 跳过第一天
+        # print(data.shape)
+        # start_time = time.time()
         for i in range(1, len(data)):
             # 复制前一天的持仓
             holdings_array[i] = holdings_array[i-1]
@@ -119,6 +125,8 @@ class HoldTradingLogic(BaseTradingLogic):
                 holdings_array[i] = np.where(signal == 1, 1, -1)
         
         # 更新portfolio
+        # end_time = time.time()
+        # print(f"Time taken: {end_time - start_time} seconds")
         portfolio['holdings'] = holdings_array
         return portfolio
 
@@ -139,7 +147,9 @@ class LongOnlyTradingLogic(BaseTradingLogic):
         holdings_array = portfolio['holdings'].values
         
         # 跳过第一天
+
         for i in range(1, len(data)):
+
             # 复制前一天的持仓
             holdings_array[i] = holdings_array[i-1]
             
@@ -151,8 +161,8 @@ class LongOnlyTradingLogic(BaseTradingLogic):
                 holdings_array[i] = np.where(signal == 1, 1, 0)
             elif current_holdings > 0:  # 多仓
                 holdings_array[i] = np.where(signal == -1, 0, 1)
-        
-        # 更新portfolio
+
+        # 更新portfolio 
         portfolio['holdings'] = holdings_array
         return portfolio
 
@@ -174,6 +184,7 @@ class ShortOnlyTradingLogic(BaseTradingLogic):
         
         # 跳过第一天
         for i in range(1, len(data)):
+
             # 复制前一天的持仓
             holdings_array[i] = holdings_array[i-1]
             

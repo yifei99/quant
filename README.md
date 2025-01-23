@@ -440,3 +440,95 @@ The FactorEngine has been optimized with a state management system:
    - State management consistency
 
 
+### 10. Strategy Optimization (`strategy.py`)
+- **Vectorized Operations**
+  - Pre-allocated numpy arrays for signals
+  - Batch factor value processing
+  - Reduced DataFrame operations
+  ```python
+  signal_array = np.zeros(len(data))
+  signals[ma_1 > ma_2] = 1
+  signals[ma_1 < ma_2] = -1
+  ```
+
+### 11. Factor Definitions (`factor_definitions.py`)
+- **Efficient Moving Average Calculation**
+  - Used numpy's convolution for MA computation
+  - Optimized padding for missing values
+  ```python
+  ma = np.convolve(values, np.ones(ma_period)/ma_period, mode='valid')
+  ma = np.pad(ma, (ma_period-1, 0), mode='edge')
+  ```
+
+- **Vectorized Signal Generation**
+  - Single-pass signal calculation
+  - Eliminated loops and conditionals
+  - Optimized threshold comparisons
+  ```python
+  signals[(values > self.upper_threshold)] = 1
+  signals[(values < self.lower_threshold)] = -1
+  ```
+
+### 12. Factor Engine (`factor_engine.py`)
+- **Memory Management**
+  - Pre-allocated result arrays
+  - Cached factor values in numpy arrays
+  - Reduced DataFrame conversions
+  ```python
+  factor_arrays = np.empty((self._data_length, len(self.factors)))
+  ```
+
+- **Computation Optimization**
+  - Single-pass factor calculation
+  - Efficient state management
+  - Optimized reset mechanism
+  ```python
+  self.factor_values[name] = factor_arrays[:, i]
+  ```
+
+### 13. Example Optimization (`2ma_factor_mining.py`)
+- **Timestamp Processing**
+  - Direct integer conversion
+  - Avoided string operations
+  - Used compact data types
+  ```python
+  data['timestamp_start'] = (data['timestamp_start'].astype(np.int64) // 1000000000).astype(np.int32)
+  ```
+
+- **Data Selection**
+  - Used views instead of copies
+  - Pre-defined required columns
+  - Optimized memory usage
+  ```python
+  data = data[required_columns].copy(deep=False)
+  ```
+
+### Key Performance Improvements
+
+1. **Memory Efficiency**
+   - Reduced memory allocations
+   - Used numpy arrays instead of DataFrames where possible
+   - Implemented efficient data type conversions
+   - Minimized data copying
+
+2. **Computational Speed**
+   - Vectorized operations throughout
+   - Eliminated loops and conditionals
+   - Reduced DataFrame operations
+   - Optimized numerical computations
+
+3. **Data Processing**
+   - Efficient timestamp handling
+   - Optimized data selection
+   - Reduced type conversions
+   - Minimized string operations
+
+4. **Resource Management**
+   - Efficient memory usage
+   - Optimized state management
+   - Reduced object creation
+   - Better garbage collection
+
+
+
+

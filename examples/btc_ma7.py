@@ -43,7 +43,7 @@ def main():
             exchange="binance",
             symbol="BTCUSDT",
             interval="1d",
-            start_date="2021-03-31",
+            start_date="2021-01-01",
             end_date="2024-12-31",
             data_type="spot"
         )
@@ -53,8 +53,8 @@ def main():
         data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
         
         # 设置您想要的日期范围
-        start_filter = '2021-03-31'
-        end_filter = '2024-03-31'
+        start_filter = '2021-01-01'
+        end_filter = '2024-12-31'
         
         # 过滤数据
         data = data[(data['Date'] >= start_filter) & (data['Date'] <= end_filter)]

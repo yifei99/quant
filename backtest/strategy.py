@@ -2,6 +2,7 @@ from typing import List
 import pandas as pd
 from abc import ABC, abstractmethod
 from factors.factor_definitions import BaseFactor
+import numpy as np
 
 class BaseStrategy(ABC):
     """
@@ -45,7 +46,7 @@ class FactorBasedStrategy(BaseStrategy):
 
     def generate_signals(self, data: pd.DataFrame) -> pd.DataFrame:
         """
-        生成交易信号。
+        生成交易信号。使用向量化操作提升性能。
 
         参数:
             data (pd.DataFrame): 包含价格数据和因子数据的DataFrame。
@@ -54,21 +55,32 @@ class FactorBasedStrategy(BaseStrategy):
             pd.DataFrame: 包含信号的DataFrame
             signal: 1.0（应该持有多头）、-1.0（应该持有空头）、0.0（应该空仓）
         """
+        # 预分配numpy数组，避免DataFrame频繁操作
+        signal_array = np.zeros(len(data))
+        
+        # 检查所有因子是否存在
+        missing_factors = [f.name for f in self.factors if f.name not in data.columns]
+        if missing_factors:
+            raise ValueError(f"DataFrame中缺少因子: {', '.join(missing_factors)}")
+        
+        # 使用numpy数组进行因子合并
+        factor_arrays = [data[factor.name].values for factor in self.factors]
+        if self.normalize_factors and factor_arrays:
+            # 归一化处理（如果需要）
+            factor_arrays = [
+                (arr - np.mean(arr)) / np.std(arr)
+                for arr in factor_arrays
+            ]
+        
+        # 高效的数组操作
+        if factor_arrays:
+            signal_array = np.sum(factor_arrays, axis=0)
+            # 使用numpy.where进行向量化判断
+            signal_array = np.where(signal_array > 0, 1.0,
+                                  np.where(signal_array < 0, -1.0, 0.0))
+        
+        # 只在最后一次转换为DataFrame
         signals = pd.DataFrame(index=data.index)
-        signals['signal'] = 0.0
-
-        # 合并因子信号
-        for factor in self.factors:
-            if factor.name not in data.columns:
-                raise ValueError(f"DataFrame中缺少因子'{factor.name}'。")
-
-            factor_signal = data[factor.name]
-            signals['signal'] += factor_signal
-
-        # 根据因子值生成信号
-        signals['signal'] = signals['signal'].apply(
-            lambda x: 1 if x > 0 else (-1 if x < 0 else 0)
-        )
-        # print(signals.head(10))
-
+        signals['signal'] = signal_array
+        
         return signals

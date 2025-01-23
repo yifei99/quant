@@ -2,6 +2,7 @@
 
 import pandas as pd
 from abc import ABC, abstractmethod
+import numpy as np
 
 class BaseFactor(ABC):
     """
@@ -51,22 +52,19 @@ class TwoThresholdFactor(BaseFactor):
 
     def calculate(self, data: pd.DataFrame) -> pd.Series:
         """
-        Calculate threshold-based factor.
-
-        Args:
-            data (pd.DataFrame): DataFrame containing the monitored column
-
-        Returns:
-            pd.Series: Factor signals, 1 for buy, -1 for sell, 0 for hold
+        Calculate threshold-based factor using vectorized operations
         """
         if self.column_name not in data.columns:
             raise ValueError(f"DataFrame must contain '{self.column_name}' column")
         
-        factor = pd.Series(0, index=data.index)
-        factor[data[self.column_name] > self.upper_threshold] = 1
-        factor[data[self.column_name] < self.lower_threshold] = -1
-
-        return factor.rename(self.name)
+        values = data[self.column_name].values
+        signals = np.zeros(len(data))
+        
+        # 一次性计算所有信号
+        signals[(values > self.upper_threshold)] = 1
+        signals[(values < self.lower_threshold)] = -1
+        
+        return pd.Series(signals, index=data.index, name=self.name)
 
 
 # 使用通用阈值因子类创建具体因子
@@ -104,29 +102,25 @@ class BaseMaFactor(BaseFactor):
         
     def calculate(self, data: pd.DataFrame) -> pd.Series:
         """
-        Calculate MA signals
-        1: When value is above MA
-        -1: When value is below MA
-        0: Otherwise
-        
-        Args:
-            data (pd.DataFrame): Input data containing the column to monitor
-
-        Returns:
-            pd.Series: Factor signals
+        Calculate MA signals using vectorized operations
         """
         if self.column_name not in data.columns:
             raise ValueError(f"DataFrame must contain '{self.column_name}' column")
             
-        # Calculate moving average
-        ma = data[self.column_name].rolling(window=self.ma_period).mean()
+        # 使用numpy数组进行计算
+        values = data[self.column_name].values
+        ma = pd.Series(
+            index=data.index,
+            data=np.convolve(values, np.ones(self.ma_period)/self.ma_period, mode='valid')
+        )
+        ma = pd.Series(index=data.index, data=np.pad(ma, (self.ma_period-1, 0), mode='edge'))
         
-        # Generate signals
-        signals = pd.Series(0, index=data.index)
-        signals[data[self.column_name] > ma] = 1
-        signals[data[self.column_name] < ma] = -1
+        # 向量化比较操作
+        signals = np.zeros(len(data))
+        signals[values > ma] = 1
+        signals[values < ma] = -1
         
-        return signals.rename(self.name)
+        return pd.Series(signals, index=data.index, name=self.name)
 
 class UsdVolumeMaFactor(BaseMaFactor):
     """USD Volume Moving Average Factor"""
@@ -165,30 +159,29 @@ class Base2MaFactor(BaseFactor):
         
     def calculate(self, data: pd.DataFrame) -> pd.Series:
         """
-        Calculate Dual MA signals
-        1: When shorter MA crosses above longer MA
-        -1: When shorter MA crosses below longer MA
-        0: Otherwise
-        
-        Args:
-            data (pd.DataFrame): Input data containing the column to monitor
-
-        Returns:
-            pd.Series: Factor signals
+        Calculate Dual MA signals using optimized numpy operations
         """
         if self.column_name not in data.columns:
             raise ValueError(f"DataFrame must contain '{self.column_name}' column")
             
-        # Calculate moving averages
-        ma_1 = data[self.column_name].rolling(window=self.ma_period_1).mean()
-        ma_2 = data[self.column_name].rolling(window=self.ma_period_2).mean()
+        values = data[self.column_name].values
         
-        # Generate signals
-        signals = pd.Series(0, index=data.index)
+        # 使用numpy的卷积运算计算移动平均
+        ma_1 = np.convolve(values, np.ones(self.ma_period_1)/self.ma_period_1, mode='valid')
+        ma_2 = np.convolve(values, np.ones(self.ma_period_2)/self.ma_period_2, mode='valid')
+        
+        # 处理开始的缺失值
+        pad_1 = self.ma_period_1 - 1
+        pad_2 = self.ma_period_2 - 1
+        ma_1 = np.pad(ma_1, (pad_1, 0), mode='edge')
+        ma_2 = np.pad(ma_2, (pad_2, 0), mode='edge')
+        
+        # 向量化信号生成
+        signals = np.zeros(len(data))
         signals[ma_1 > ma_2] = 1
         signals[ma_1 < ma_2] = -1
         
-        return signals.rename(self.name)
+        return pd.Series(signals, index=data.index, name=self.name)
     
 class Price2MaFactor(Base2MaFactor):
     """Price Dual Moving Average Factor"""
