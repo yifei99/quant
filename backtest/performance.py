@@ -3,6 +3,7 @@
 import pandas as pd
 import numpy as np
 import logging
+import os
 
 class PerformanceEvaluator:
     """
@@ -226,21 +227,25 @@ class PerformanceEvaluator:
             logging.error(f"Error calculating performance metrics: {e}")
             return {}
 
-    def plot_performance(self, portfolio: pd.DataFrame, data: pd.DataFrame):
+    def plot_performance(self, portfolio: pd.DataFrame, data: pd.DataFrame, save_dir: str = None):
         """
-        Plot strategy performance and asset price with trade markers.
-        Generates both HTML (interactive) and PNG (static) versions.
+        Plot performance metrics and save both HTML and PNG versions
         
         Args:
-            portfolio (pd.DataFrame): Portfolio data with holdings and returns
-            data (pd.DataFrame): Price data
+            portfolio (pd.DataFrame): Portfolio data
+            data (pd.DataFrame): Market data
+            save_dir (str): Directory to save the plots
         """
-        # Generate interactive HTML chart
-        self._plot_interactive(portfolio, data)
-        # Generate static PNG chart
-        self._plot_static(portfolio, data)
+        if save_dir is None:
+            save_dir = '.'
+        
+        # Generate interactive HTML plot
+        self._plot_interactive(portfolio, data, save_dir)
+        
+        # Generate static PNG plot
+        self._plot_static(portfolio, data, save_dir)
 
-    def _plot_interactive(self, portfolio: pd.DataFrame, data: pd.DataFrame):
+    def _plot_interactive(self, portfolio: pd.DataFrame, data: pd.DataFrame, save_dir: str):
         """Generate interactive HTML chart using pyecharts"""
         from pyecharts import options as opts
         from pyecharts.charts import Grid, Line, Scatter
@@ -504,10 +509,11 @@ class PerformanceEvaluator:
             )
         )
         
-        # Save to HTML file
-        grid.render("strategy_performance.html")
+        # Save to HTML file in the specified directory
+        html_path = os.path.join(save_dir, 'strategy_performance.html')
+        grid.render(html_path)
 
-    def _plot_static(self, portfolio: pd.DataFrame, data: pd.DataFrame):
+    def _plot_static(self, portfolio: pd.DataFrame, data: pd.DataFrame, save_dir: str):
         """Generate static PNG chart using matplotlib"""
         import matplotlib.pyplot as plt
         from matplotlib.gridspec import GridSpec
@@ -620,6 +626,7 @@ class PerformanceEvaluator:
         # Adjust layout with more space
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         
-        # Save plot
-        plt.savefig('strategy_performance.png', dpi=300, bbox_inches='tight')
+        # Save plot to the specified directory
+        png_path = os.path.join(save_dir, 'strategy_performance.png')
+        plt.savefig(png_path, dpi=300, bbox_inches='tight')
         plt.close()

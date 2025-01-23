@@ -12,6 +12,7 @@ from factors.factor_engine import FactorEngine
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Any
 from joblib import Parallel, delayed
+import os
 
 class StrategyOptimizer:
     def __init__(self, engine: BacktestEngine, evaluator: PerformanceEvaluator):
@@ -129,7 +130,8 @@ class StrategyOptimizer:
             return None
 
     def find_optimal_thresholds(self, results: dict, data: pd.DataFrame, 
-                              factor_class: BaseFactor, strategy_class: BaseStrategy) -> tuple:
+                              factor_class: BaseFactor, strategy_class: BaseStrategy,
+                              save_dir: str) -> tuple:
         """
         从优化结果中找到夏普比率最高的阈值组合。
 
@@ -138,6 +140,7 @@ class StrategyOptimizer:
             data (pd.DataFrame): 用于最终回测的数据
             factor_class (BaseFactor): 因子类
             strategy_class (BaseStrategy): 策略类
+            save_dir (str): 结果保存目录
 
         返回:
             tuple: (最优参数字典, 最优夏普比率, 完整性能指标, 最优参数的回测结果)
@@ -153,12 +156,16 @@ class StrategyOptimizer:
         factor_engine.register_factor(factor)
         strategy = strategy_class(factors=[factor])
         
+        # 确保保存目录存在
+        os.makedirs(save_dir, exist_ok=True)
+        
         # 最终回测生成图表
         portfolio_optimal = self.engine.run_backtest(
             data=data, 
             strategy=strategy, 
             factor_engine=factor_engine,
-            plot=True  # 为最优参数生成图表
+            plot=True,
+            save_dir=save_dir  # 传入保存目录
         )
         
         return optimal_params, optimal_sharpe, optimal_metrics, portfolio_optimal

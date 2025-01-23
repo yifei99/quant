@@ -3,6 +3,9 @@ import requests
 from datetime import datetime, timedelta
 import zipfile
 import pandas as pd
+import concurrent.futures
+import logging
+from tqdm import tqdm
 
 class DataDownloader:
     def __init__(self, symbol, interval, start_date, end_date, data_folder, data_type="spot", exchange="binance"):
@@ -29,6 +32,12 @@ class DataDownloader:
         self.interval_folder = os.path.join(data_folder, symbol, data_type, interval)
         self.create_dir(self.download_dir)
         self.create_dir(self.interval_folder)
+        
+        # 设置日志
+        self.logger = logging.getLogger(__name__)
+        
+        # 设置并发数
+        self.max_workers = 6
 
     def create_dir(self, path):
         """Create directory if not exists"""
@@ -36,62 +45,75 @@ class DataDownloader:
             os.makedirs(path)
 
     def download_file(self, url, dest_folder):
-        """
-        Download file from specified URL and save to destination folder.
+        """优化下载函数，添加重试机制"""
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    file_name = url.split("/")[-1]
+                    file_path = os.path.join(dest_folder, file_name)
+                    with open(file_path, 'wb') as file:
+                        file.write(response.content)
+                    return file_path
+                elif response.status_code == 404:
+                    return None
+            except (requests.RequestException, TimeoutError) as e:
+                if attempt == max_retries - 1:
+                    self.logger.error(f"Failed to download {url} after {max_retries} attempts: {e}")
+                    return None
+                continue
+        return None
 
-        Args:
-            url (str): Download URL
-            dest_folder (str): Destination folder path
-
-        Returns:
-            str or None: Path to downloaded file, None if download fails
-        """
-        response = requests.get(url)
-        if response.status_code == 200:
-            file_name = url.split("/")[-1]
-            file_path = os.path.join(dest_folder, file_name)
-            with open(file_path, 'wb') as file:
-                file.write(response.content)
-            print(f"Downloaded: {file_name}")
-            return file_path
-        else:
-            print(f"Failed to download: {url}")
-            return None
-
-    def unzip_and_move(self, zip_file_path, extract_to_folder):
-        """
-        解壓並移動文件
-
-        參數:
-            zip_file_path (str): 壓縮文件的路徑。
-            extract_to_folder (str): 解壓後文件的保存目標文件夾。
-        """
-        self.create_dir(extract_to_folder)
+    def process_zip_file(self, zip_file_path, extract_to_folder):
+        """优化解压和处理函数"""
         try:
             with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_to_folder)
-            print(f"Unzipped: {zip_file_path}")
+                # 直接读取 zip 中的 CSV 文件内容而不解压
+                csv_filename = zip_ref.namelist()[0]
+                with zip_ref.open(csv_filename) as csv_file:
+                    df = pd.read_csv(csv_file, header=None)
+                    
+            # 删除 zip 文件
             os.remove(zip_file_path)
-            print(f"Deleted zip file: {zip_file_path}")
-        except zipfile.BadZipFile:
-            print(f"Error: {zip_file_path} is not a valid zip file.")
+            return df
+        except Exception as e:
+            self.logger.error(f"Error processing zip file {zip_file_path}: {e}")
+            return None
+
+    def download_and_process_date(self, date):
+        """单个日期的下载和处理"""
+        date_str = date.strftime("%Y-%m-%d")
+        base_url = "https://data.binance.vision/data"
+        market_type = "spot" if self.data_type == "spot" else "futures/um"
+        url = f"{base_url}/{market_type}/daily/klines/{self.symbol}/{self.interval}/{self.symbol}-{self.interval}-{date_str}.zip"
+        
+        zip_file_path = self.download_file(url, self.download_dir)
+        if zip_file_path:
+            return self.process_zip_file(zip_file_path, self.interval_folder)
+        return None
 
     def download_binance_data(self):
-        """
-        下載 Binance 數據
-        """
+        """并行下载和处理数据"""
         start_date = datetime.strptime(self.start_date, "%Y-%m-%d")
         end_date = datetime.strptime(self.end_date, "%Y-%m-%d")
         date_range = [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
         
-        base_url = "https://data.binance.vision/data/spot/daily/klines" if self.data_type == "spot" else "https://data.binance.vision/data/futures/um/daily/klines"
+        all_data = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            # 使用 tqdm 显示进度
+            futures = {executor.submit(self.download_and_process_date, date): date for date in date_range}
+            for future in tqdm(concurrent.futures.as_completed(futures), total=len(date_range), 
+                             desc=f"Downloading {self.symbol} {self.interval}"):
+                date = futures[future]
+                try:
+                    df = future.result()
+                    if df is not None:
+                        all_data.append(df)
+                except Exception as e:
+                    self.logger.error(f"Error processing date {date}: {e}")
         
-        for date in date_range:
-            date_str = date.strftime("%Y-%m-%d")
-            url = f"{base_url}/{self.symbol}/{self.interval}/{self.symbol}-{self.interval}-{date_str}.zip"
-            zip_file_path = self.download_file(url, self.download_dir)
-            if zip_file_path:
-                self.unzip_and_move(zip_file_path, extract_to_folder=self.interval_folder)
+        return all_data
 
     def download_bybit_data(self):
         """
@@ -100,65 +122,47 @@ class DataDownloader:
         # 這是未來的擴展，這裡需要根據 Bybit API 格式來實現
         pass
 
-    def process_data(self):
-        """
-        Process data and save as HDF5 file.
-        
-        Returns:
-            pd.DataFrame: Processed data
-        """
-        all_files = [os.path.join(self.interval_folder, f) for f in os.listdir(self.interval_folder) if f.endswith('.csv')]
-        all_data = []
-
-        for file in all_files:
-            print(f"Processing file: {file}")
-            df = pd.read_csv(file, header=None)
-            df.columns = [
-                "timestamp_start", "open", "high", "low", "close", "volume",
-                "timestamp_end", "quote_asset_volume", "number_of_trades", 
-                "taker_buy_base", "taker_buy_quote", "ignore"
-            ]
-            all_data.append(df)
-            os.remove(file)  # 刪除處理過的 CSV 文件
-            print(f"Deleted file: {file}")
-
+    def process_data(self, all_data):
+        """优化数据处理"""
+        if not all_data:
+            return None
+            
         final_data = pd.concat(all_data, ignore_index=True)
-
-        # timestamp_start 和 timestamp_end 已經是 UNIX 時間戳，不需要處理
+        final_data.columns = [
+            "timestamp_start", "open", "high", "low", "close", "volume",
+            "timestamp_end", "quote_asset_volume", "number_of_trades", 
+            "taker_buy_base", "taker_buy_quote", "ignore"
+        ]
+        
         final_data = final_data.sort_values(by="timestamp_start").reset_index(drop=True)
-
-        # 動態生成 HDF5 文件的路徑，使用時間範圍作為文件名
+        
+        # 保存为 HDF5 文件
         hdf5_file_name = f"{self.symbol}_{self.interval}_{self.start_date}_to_{self.end_date}.h5"
         hdf5_file_path = os.path.join(self.interval_folder, hdf5_file_name)
-        
         final_data.to_hdf(hdf5_file_path, key="prices", mode="w", format="table")
-        print(f"Data has been merged and saved as HDF5 file: {hdf5_file_path}")
-
-        return final_data  # 返回處理後的數據
+        
+        return final_data
 
     def fetch_and_process_data(self):
-        """
-        統一調用下載和處理數據的方法
-        """
+        """主函数保持不变，但使用新的处理方式"""
         if self.exchange == "binance":
-            self.download_binance_data()
+            all_data = self.download_binance_data()
+            return self.process_data(all_data)
         elif self.exchange == "bybit":
             self.download_bybit_data()
         else:
             raise ValueError(f"Unsupported exchange: {self.exchange}")
-        
-        return self.process_data()
 
 
-# 使用示例：
-symbol = "BTCUSDT"
-interval = "1d"  # 可以改為 "1m", "5m", "1h", "1d" 等
-start_date = "2021-03-31"
-end_date = "2024-12-31"
-data_folder = "../dataset/binance"
-data_type = "spot"
-exchange = "binance"
+# # 使用示例：
+# symbol = "BTCUSDT"
+# interval = "1d"  # 可以改為 "1m", "5m", "1h", "1d" 等
+# start_date = "2022-01-01"
+# end_date = "2024-12-31"
+# data_folder = "../dataset/binance"
+# data_type = "spot"
+# exchange = "binance"
 
-# 創建 DataDownloader 實例，選擇對應的交易所
-data_downloader = DataDownloader(symbol, interval, start_date, end_date, data_folder, data_type, exchange)
-data = data_downloader.fetch_and_process_data()
+# # 創建 DataDownloader 實例，選擇對應的交易所
+# data_downloader = DataDownloader(symbol, interval, start_date, end_date, data_folder, data_type, exchange)
+# data = data_downloader.fetch_and_process_data()

@@ -1,8 +1,0 @@
-Total Return: 51.75%
-Realized Return: 53.61%
-Unrealized Return: -1.86%
-Annualized Return: 56.73%
-Sharpe Ratio: 1.2376
-Sortino Ratio: 1.2596
-Max Drawdown: -17.45%
-Trade Count: 63.0000
