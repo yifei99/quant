@@ -373,3 +373,70 @@ portfolio['holdings'] = holdings_array
 
 These optimizations demonstrate how proper vectorization and data structure selection can dramatically improve performance in Python data processing applications.
 
+### 7. FactorEngine Optimization
+The FactorEngine has been optimized with a state management system:
+
+- **State Reset Mechanism**
+  - Added `reset()` method to clear cached factor values and signals
+  - Allows reuse of FactorEngine instances across multiple tests
+  - Maintains factor definitions while clearing computed results
+
+- **Memory Management**
+  - Efficient reuse of engine instances reduces memory allocation
+  - Prevents memory leaks during large-scale optimization
+  - Minimizes garbage collection overhead
+
+### 8. Strategy Optimizer Enhancements
+
+- **Parallel Processing**
+  - Automatic CPU core detection and limitation
+  ```python
+  n_jobs = min(psutil.cpu_count(), 32)  # Limit max processes
+  ```
+  - Optimized batch size based on CPU cores
+  ```python
+  batch_size = max(10, n_jobs * 10)  # Dynamic batch sizing
+  ```
+
+- **Resource Management**
+  - Pre-allocated FactorEngine pool for each process
+  - Cyclic engine reuse pattern to minimize resource consumption
+  ```python
+  factor_engines = [FactorEngine() for _ in range(n_jobs)]
+  # ... 
+  factor_engines[i % len(factor_engines)]  # Cyclic usage
+  ```
+
+- **Batch Processing**
+  - Efficient parameter combination testing in batches
+  - Reduced inter-process communication overhead
+  - Optimized progress tracking with batch updates
+
+- **Performance Monitoring**
+  - Real-time tracking of best Sharpe ratio
+  - Elapsed time monitoring per combination
+  - Batch-level progress updates
+
+### 9. Key Improvements
+
+1. **Memory Efficiency**
+   - Reduced memory allocation frequency
+   - Better memory usage patterns
+   - Minimized object creation/destruction cycles
+
+2. **Processing Speed**
+   - Optimized parallel execution
+   - Efficient resource utilization
+   - Reduced system call overhead
+
+3. **Scalability**
+   - Handles large parameter spaces efficiently
+   - Automatic resource allocation
+   - Balanced CPU utilization
+
+4. **Reliability**
+   - Robust error handling
+   - Process isolation
+   - State management consistency
+
+

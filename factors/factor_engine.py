@@ -9,7 +9,9 @@ class FactorEngine:
     因子计算引擎，管理因子的注册和计算。
     """
     def __init__(self):
-        self.factors: List[BaseFactor] = []
+        self.factors = {}
+        self.factor_values = {}
+        self.signals = {}
 
     def register_factor(self, factor: BaseFactor):
         """
@@ -18,7 +20,7 @@ class FactorEngine:
         参数:
             factor (BaseFactor): 要注册的因子实例。
         """
-        self.factors.append(factor)
+        self.factors[factor.name] = factor
 
     def calculate_factors(self, data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -31,7 +33,7 @@ class FactorEngine:
             pd.DataFrame: 包含所有因子值的DataFrame。
         """
         factor_data = pd.DataFrame(index=data.index)
-        for factor in self.factors:
+        for factor in self.factors.values():
             factor_series = factor.calculate(data)
             factor_data = pd.concat([factor_data, factor_series], axis=1)
         return factor_data
@@ -43,4 +45,16 @@ class FactorEngine:
         返回:
             List[str]: 因子名称列表。
         """
-        return [factor.name for factor in self.factors]
+        return list(self.factors.keys())
+
+    def reset(self):
+        """
+        重置因子引擎状态，清空所有缓存的因子值和信号
+        但保留已注册的因子定义
+        """
+        # 清空因子计算结果
+        self.factor_values = {}
+        # 清空信号
+        self.signals = {}
+        # 清空因子列表
+        self.factors = {}

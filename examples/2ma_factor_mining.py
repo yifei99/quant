@@ -67,7 +67,87 @@ def main():
                 'exchange': 'binance',
                 'symbol': 'ETHUSDT',
                 'interval': '1d',
-                'start_date': '2022-01-01',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '1m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '5m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '1h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '4h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '8h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '12h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '6h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '2h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '15m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '30m',
+                'start_date': '2021-01-01',
                 'end_date': '2024-12-31',
                 'data_type': 'spot'
             },
@@ -75,7 +155,87 @@ def main():
                 'exchange': 'binance',
                 'symbol': 'BTCUSDT',
                 'interval': '1d',
-                'start_date': '2022-01-01',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '1m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '5m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '1h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '4h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '8h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '12h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '6h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '2h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '15m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '30m',
+                'start_date': '2021-01-01',
                 'end_date': '2024-12-31',
                 'data_type': 'spot'
             },
@@ -83,10 +243,90 @@ def main():
                 'exchange': 'binance',
                 'symbol': 'SOLUSDT',
                 'interval': '1d',
-                'start_date': '2022-1-01',
+                'start_date': '2021-01-01',
                 'end_date': '2024-12-31',
                 'data_type': 'spot'
-            }
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '1m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '5m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '1h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '4h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '8h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '12h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '6h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '2h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '15m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '30m',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
             # 可以添加更多数据集配置
         ],
         'trading_logics': [
@@ -153,12 +393,12 @@ def main():
                     optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
                     threshold_params = factor_config['params']  # 直接使用配置中的参数
                     
+                    # 设置n_jobs参数，可以根据需要调整
                     optimization_results = optimizer.optimize_thresholds(
                         data=data,
                         threshold_params=threshold_params,
                         factor_class=factor_config['class'],
                         strategy_class=FactorBasedStrategy,
-                        n_jobs=-1,
                         enforce_threshold_order=True
                     )
                     

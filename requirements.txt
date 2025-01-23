@@ -3,3 +3,5 @@ tables
 matplotlib
 joblib
 numpy
+tdqm
+psutil

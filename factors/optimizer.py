@@ -11,21 +11,26 @@ from factors.factor_definitions import BaseFactor
 from factors.factor_engine import FactorEngine
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Any
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, parallel_backend
 import os
+from tqdm import tqdm
+import psutil
 
 class StrategyOptimizer:
     def __init__(self, engine: BacktestEngine, evaluator: PerformanceEvaluator):
         self.engine = engine
         self.evaluator = evaluator
         self.logger = logging.getLogger(__name__)
-
+        # 自动设置最优进程数
+        self.n_jobs = min(psutil.cpu_count(), 32)  # 限制最大进程数
+        # 优化批处理大小
+        self.batch_size = max(10, self.n_jobs * 10)  # 根据CPU核心数调整批大小
 
     def optimize_thresholds(self, data: pd.DataFrame,
                           threshold_params: dict,
                           factor_class: BaseFactor,
                           strategy_class: BaseStrategy,
-                          n_jobs: int = -1,
+                          n_jobs: int = None,
                           enforce_threshold_order: bool = True) -> dict:
         """
         优化多个因子阈值，使用joblib并行测试不同组合。
@@ -38,6 +43,10 @@ class StrategyOptimizer:
             n_jobs: 并行进程数
             enforce_threshold_order: 是否强制要求下限阈值小于上限阈值
         """
+        # 使用传入的n_jobs或默认值
+        n_jobs = n_jobs if n_jobs is not None else self.n_jobs
+        
+        # 预先生成参数组合
         param_names = list(threshold_params.keys())
         param_values = list(threshold_params.values())
         param_combinations = list(product(*param_values))
@@ -51,43 +60,52 @@ class StrategyOptimizer:
             valid_combinations = param_combinations
         
         results = {}
+        best_sharpe = float('-inf')  # 初始化最佳夏普比率
         total_combinations = len(valid_combinations)
         total_start_time = pd.Timestamp.now()
-        self.logger.info(f"Testing {total_combinations} parameter combinations using joblib")
+        self.logger.info(f"Testing {total_combinations} parameter combinations using {n_jobs} processes")
         
-        processed_count = 0  # 添加计数器
-        batch_size = 1000  # 使用更大的批次
-        for i in range(0, len(valid_combinations), batch_size):
-            batch = valid_combinations[i:i + batch_size]
-            processed_results = Parallel(n_jobs=n_jobs, verbose=0)(
-                delayed(self._test_combination)(
-                    combination, param_names, data, factor_class, strategy_class
-                ) for combination in batch
-            )
-            
-            # 处理当前批次的结果
-            for combination, result in zip(batch, processed_results):
-                if result is not None:
-                    results[combination] = result
-                    processed_count += 1  # 更新计数器
+        # 为每个进程创建一个因子引擎实例
+        factor_engines = [FactorEngine() for _ in range(n_jobs if n_jobs > 0 else self.n_jobs)]
+        
+        # 使用上下文管理器优化并行计算
+        with parallel_backend('loky', n_jobs=n_jobs):
+            with tqdm(total=total_combinations, desc="Optimizing parameters") as pbar:
+                for i in range(0, total_combinations, self.batch_size):
+                    batch = valid_combinations[i:min(i + self.batch_size, total_combinations)]
                     
-                    # 每100个结果打印一次进度
-                    if processed_count % 100 == 0:
-                        total_elapsed = (pd.Timestamp.now() - total_start_time).total_seconds()
-                        params = dict(zip(param_names, combination))
-                        self.logger.info(
-                            f"Progress: {processed_count}/{total_combinations} | "
-                            f"Time: {total_elapsed:.2f}s | "
-                            f"Params: {params}, "
-                            f"Sharpe: {result['sharpe_ratio']:.4f}, "
-                            f"Return: {result['metrics']['Total Return']:.4f}"
-                        )
+                    # 批量处理参数组合
+                    processed_results = Parallel()(
+                        delayed(self._test_combination)(
+                            combination, 
+                            param_names, 
+                            data, 
+                            factor_class, 
+                            strategy_class,
+                            factor_engines[i % len(factor_engines)]  # 循环使用因子引擎
+                        ) for combination in batch
+                    )
+                    
+                    # 高效处理批量结果
+                    valid_results = [(combo, result) for combo, result in zip(batch, processed_results) if result is not None]
+                    if valid_results:
+                        for combo, result in valid_results:
+                            results[combo] = result
+                            best_sharpe = max(best_sharpe, result['sharpe_ratio'])  # 更新最佳夏普比率
+                        
+                        pbar.update(len(batch))
+                        
+                        # 每批次更新一次进度信息
+                        if len(valid_results) > 0:
+                            pbar.set_postfix({
+                                'Best Sharpe': f'{best_sharpe:.4f}'
+                            })
         
         total_time = (pd.Timestamp.now() - total_start_time).total_seconds()
         self.logger.info(f"Optimization completed in {total_time:.2f}s")
         return results
 
-    def _test_combination(self, combination, param_names, data, factor_class, strategy_class):
+    def _test_combination(self, combination, param_names, data, factor_class, strategy_class, factor_engine):
         """
         测试单个参数组合
         
@@ -100,13 +118,20 @@ class StrategyOptimizer:
         """
         start_time = pd.Timestamp.now()
         try:
+            # 创建参数字典
             params = dict(zip(param_names, combination))
-            # 直接使用类名作为因子名称
+            
+            # 创建因子实例
             factor = factor_class(name=factor_class.__name__, **params)
-            factor_engine = FactorEngine()
+            
+            # 重置并重用因子引擎
+            factor_engine.reset()
             factor_engine.register_factor(factor)
+            
+            # 创建策略实例
             strategy = strategy_class(factors=[factor])
             
+            # 运行回测
             portfolio = self.engine.run_backtest(
                 data=data,
                 strategy=strategy,
@@ -114,6 +139,7 @@ class StrategyOptimizer:
                 plot=False
             )
             
+            # 计算指标
             metrics = self.evaluator.calculate_performance_metrics(portfolio)
             
             elapsed_time = (pd.Timestamp.now() - start_time).total_seconds()
