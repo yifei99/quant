@@ -63,54 +63,6 @@ def main():
     # 定义要测试的配置
     test_configs = {
         'datasets': [
-            # {
-            #     'exchange': 'binance',
-            #     'symbol': 'ETHUSDT',
-            #     'interval': '1d',
-            #     'start_date': '2021-01-01',
-            #     'end_date': '2024-12-31',
-            #     'data_type': 'spot'
-            # },
-            # {
-            #     'exchange': 'binance',
-            #     'symbol': 'ETHUSDT',
-            #     'interval': '1h',
-            #     'start_date': '2021-01-01',
-            #     'end_date': '2024-12-31',
-            #     'data_type': 'spot'
-            # },
-            # {
-            #     'exchange': 'binance',
-            #     'symbol': 'ETHUSDT',
-            #     'interval': '4h',
-            #     'start_date': '2021-01-01',
-            #     'end_date': '2024-12-31',
-            #     'data_type': 'spot'
-            # },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '8h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '6h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '1d',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
             {
                 'exchange': 'binance',
                 'symbol': 'BTCUSDT',
@@ -121,64 +73,8 @@ def main():
             },
             {
                 'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '4h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '8h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '6h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '1d',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
                 'symbol': 'SOLUSDT',
                 'interval': '1h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '4h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '8h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '6h',
                 'start_date': '2021-01-01',
                 'end_date': '2024-12-31',
                 'data_type': 'spot'
@@ -195,24 +91,24 @@ def main():
                 'class': Price2MaFactor, 
                 'name': 'price_2ma',
                 'params': {
-                    'ma_period_1': range(3, 360, 1),
-                    'ma_period_2': range(3, 360, 1)
+                    'ma_period_1': range(0, 300, 1),
+                    'ma_period_2': range(0, 300, 1)
                 }
             },
             {
                 'class': Volume2MaFactor, 
                 'name': 'volume_2ma',
                 'params': {
-                    'ma_period_1': range(3, 360, 1),
-                    'ma_period_2': range(3, 360, 1)
+                    'ma_period_1': range(0, 300, 1),
+                    'ma_period_2': range(0, 300, 1)
                 }
             },
             {
                 'class': UsdVolume2MaFactor, 
                 'name': 'usd_volume_2ma',
                 'params': {
-                    'ma_period_1': range(3, 360, 1),
-                    'ma_period_2': range(3, 360, 1)
+                    'ma_period_1': range(0, 300, 1),
+                    'ma_period_2': range(0, 300, 1)
                 }
             }
         ]

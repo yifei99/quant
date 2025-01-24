@@ -57,22 +57,34 @@ class TwoThresholdFactor(BaseFactor):
         if self.column_name not in data.columns:
             raise ValueError(f"DataFrame must contain '{self.column_name}' column")
         
+        # 使用numpy数组进行计算
         values = data[self.column_name].values
-        signals = np.zeros(len(data))
         
-        # 一次性计算所有信号
-        signals[(values > self.upper_threshold)] = 1
-        signals[(values < self.lower_threshold)] = -1
+        # 使用numpy的where函数一次性生成所有信号
+        signals = np.where(
+            values > self.upper_threshold, 1,
+            np.where(
+                values < self.lower_threshold, -1,
+                0
+            )
+        )
         
+        # 返回带有正确索引的Series
         return pd.Series(signals, index=data.index, name=self.name)
 
 
-# 使用通用阈值因子类创建具体因子
 class USDTIssuance2Factor(TwoThresholdFactor):
+    """USDT Issuance threshold factor"""
     def __init__(self, 
                  name='usdt_issuance', 
                  upper_threshold=10000000,
                  lower_threshold=1000000):
+        """
+        Args:
+            name (str): Factor name, defaults to 'usdt_issuance'
+            upper_threshold (float): Upper threshold for buy signals, defaults to 10M
+            lower_threshold (float): Lower threshold for sell signals, defaults to 1M
+        """
         super().__init__(
             name=name,
             column_name='USDT_issuance',
@@ -82,10 +94,17 @@ class USDTIssuance2Factor(TwoThresholdFactor):
 
 
 class Liq2Factor(TwoThresholdFactor):
+    """Liquidation threshold factor"""
     def __init__(self, 
                  name='liq',
                  upper_threshold=2,
                  lower_threshold=-2):
+        """
+        Args:
+            name (str): Factor name, defaults to 'liq'
+            upper_threshold (float): Upper threshold for buy signals, defaults to 2
+            lower_threshold (float): Lower threshold for sell signals, defaults to -2
+        """
         super().__init__(
             name=name,
             column_name='Liq',
@@ -97,6 +116,8 @@ class BaseMaFactor(BaseFactor):
     """Base class for Moving Average factors"""
     def __init__(self, name: str, column_name: str, ma_period: int = 7):
         super().__init__(name)
+        if ma_period < 0:
+            raise ValueError("ma_period must be non-negative")
         self.column_name = column_name
         self.ma_period = ma_period
         
@@ -107,18 +128,24 @@ class BaseMaFactor(BaseFactor):
         if self.column_name not in data.columns:
             raise ValueError(f"DataFrame must contain '{self.column_name}' column")
             
-        # 使用numpy数组进行计算
         values = data[self.column_name].values
-        ma = pd.Series(
-            index=data.index,
-            data=np.convolve(values, np.ones(self.ma_period)/self.ma_period, mode='valid')
-        )
-        ma = pd.Series(index=data.index, data=np.pad(ma, (self.ma_period-1, 0), mode='edge'))
+        signals = np.zeros(len(data))  # 初始化信号为0
         
-        # 向量化比较操作
-        signals = np.zeros(len(data))
-        signals[values > ma] = 1
-        signals[values < ma] = -1
+        # 如果ma_period为0，直接使用原始值
+        if self.ma_period == 0:
+            ma = values
+            valid_index = 0
+        else:
+            # 计算移动平均
+            ma = np.convolve(values, np.ones(self.ma_period)/self.ma_period, mode='valid')
+            valid_index = self.ma_period - 1  # MA开始有效的位置
+            # 对齐长度
+            ma = np.pad(ma, (valid_index, 0), mode='edge')
+        
+        # 生成信号
+        signals[valid_index:][values[valid_index:] == ma[valid_index:]] = 0
+        signals[valid_index:][values[valid_index:] > ma[valid_index:]] = 1
+        signals[valid_index:][values[valid_index:] < ma[valid_index:]] = -1
         
         return pd.Series(signals, index=data.index, name=self.name)
 
@@ -153,6 +180,8 @@ class Base2MaFactor(BaseFactor):
     """Base class for Dual Moving Average factors"""
     def __init__(self, name: str, column_name: str, ma_period_1: int = 7, ma_period_2: int = 14):
         super().__init__(name)
+        if ma_period_1 < 0 or ma_period_2 < 0:
+            raise ValueError("ma_period must be non-negative")
         self.column_name = column_name
         self.ma_period_1 = ma_period_1
         self.ma_period_2 = ma_period_2
@@ -165,21 +194,33 @@ class Base2MaFactor(BaseFactor):
             raise ValueError(f"DataFrame must contain '{self.column_name}' column")
             
         values = data[self.column_name].values
+        signals = np.zeros(len(data))  # 初始化信号为0
         
-        # 使用numpy的卷积运算计算移动平均
-        ma_1 = np.convolve(values, np.ones(self.ma_period_1)/self.ma_period_1, mode='valid')
-        ma_2 = np.convolve(values, np.ones(self.ma_period_2)/self.ma_period_2, mode='valid')
+        # 计算第一个MA
+        if self.ma_period_1 == 0:
+            ma_1 = values
+            valid_index_1 = 0
+        else:
+            ma_1 = np.convolve(values, np.ones(self.ma_period_1)/self.ma_period_1, mode='valid')
+            valid_index_1 = self.ma_period_1 - 1
+            ma_1 = np.pad(ma_1, (valid_index_1, 0), mode='edge')
+            
+        # 计算第二个MA
+        if self.ma_period_2 == 0:
+            ma_2 = values
+            valid_index_2 = 0
+        else:
+            ma_2 = np.convolve(values, np.ones(self.ma_period_2)/self.ma_period_2, mode='valid')
+            valid_index_2 = self.ma_period_2 - 1
+            ma_2 = np.pad(ma_2, (valid_index_2, 0), mode='edge')
         
-        # 处理开始的缺失值
-        pad_1 = self.ma_period_1 - 1
-        pad_2 = self.ma_period_2 - 1
-        ma_1 = np.pad(ma_1, (pad_1, 0), mode='edge')
-        ma_2 = np.pad(ma_2, (pad_2, 0), mode='edge')
+        # 使用较长的MA周期作为有效起始点
+        valid_index = max(valid_index_1, valid_index_2)
         
-        # 向量化信号生成
-        signals = np.zeros(len(data))
-        signals[ma_1 > ma_2] = 1
-        signals[ma_1 < ma_2] = -1
+        # 生成信号
+        signals[valid_index:][ma_1[valid_index:] == ma_2[valid_index:]] = 0
+        signals[valid_index:][ma_1[valid_index:] > ma_2[valid_index:]] = 1
+        signals[valid_index:][ma_1[valid_index:] < ma_2[valid_index:]] = -1
         
         return pd.Series(signals, index=data.index, name=self.name)
     

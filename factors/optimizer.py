@@ -164,7 +164,7 @@ class StrategyOptimizer:
 
     def find_optimal_thresholds(self, results: dict, data: pd.DataFrame, 
                               factor_class: BaseFactor, strategy_class: BaseStrategy,
-                              save_dir: str) -> tuple:
+                              save_dir: str, min_sharpe: float = 1.0) -> tuple:
         """
         从优化结果中找到夏普比率最高的阈值组合。
 
@@ -174,6 +174,7 @@ class StrategyOptimizer:
             factor_class (BaseFactor): 因子类
             strategy_class (BaseStrategy): 策略类
             save_dir (str): 结果保存目录
+            min_sharpe (float): 最小夏普比率阈值，低于此值不生成图表，默认为1.0
 
         返回:
             tuple: (最优参数字典, 最优夏普比率, 完整性能指标, 最优参数的回测结果)
@@ -183,7 +184,7 @@ class StrategyOptimizer:
         optimal_sharpe = optimal_combination[1]['sharpe_ratio']
         optimal_metrics = optimal_combination[1]['metrics']
         
-        # 使用最优参数运行一次回测并生成图表
+        # 使用最优参数运行一次回测
         factor = factor_class(name=factor_class.__name__, **optimal_params)
         factor_engine = FactorEngine()
         factor_engine.register_factor(factor)
@@ -192,13 +193,20 @@ class StrategyOptimizer:
         # 确保保存目录存在
         os.makedirs(save_dir, exist_ok=True)
         
-        # 最终回测生成图表
+        # 只有当夏普比率超过阈值时才生成图表
+        should_plot = optimal_sharpe >= min_sharpe
+        
+        # 最终回测
         portfolio_optimal = self.engine.run_backtest(
             data=data, 
             strategy=strategy, 
             factor_engine=factor_engine,
-            plot=True,
-            save_dir=save_dir  # 传入保存目录
+            plot=should_plot,  # 根据夏普比率决定是否绘图
+            save_dir=save_dir if should_plot else None  # 只在需要绘图时传入保存目录
         )
+        
+        # 记录是否生成了图表
+        if not should_plot:
+            self.logger.info(f"Skipped plot generation due to low Sharpe ratio: {optimal_sharpe:.2f} < {min_sharpe}")
         
         return optimal_params, optimal_sharpe, optimal_metrics, portfolio_optimal

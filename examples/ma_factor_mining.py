@@ -65,7 +65,39 @@ def main():
                 'exchange': 'binance',
                 'symbol': 'ETHUSDT',
                 'interval': '1d',
-                'start_date': '2022-01-01',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '1h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '4h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '8h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'ETHUSDT',
+                'interval': '6h',
+                'start_date': '2021-01-01',
                 'end_date': '2024-12-31',
                 'data_type': 'spot'
             },
@@ -73,7 +105,39 @@ def main():
                 'exchange': 'binance',
                 'symbol': 'BTCUSDT',
                 'interval': '1d',
-                'start_date': '2022-01-01',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '1h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '4h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '8h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'BTCUSDT',
+                'interval': '6h',
+                'start_date': '2021-01-01',
                 'end_date': '2024-12-31',
                 'data_type': 'spot'
             },
@@ -81,10 +145,43 @@ def main():
                 'exchange': 'binance',
                 'symbol': 'SOLUSDT',
                 'interval': '1d',
-                'start_date': '2022-1-01',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '1h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '4h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '8h',
+                'start_date': '2021-01-01',
+                'end_date': '2024-12-31',
+                'data_type': 'spot'
+            },
+            {
+                'exchange': 'binance',
+                'symbol': 'SOLUSDT',
+                'interval': '6h',
+                'start_date': '2021-01-01',
                 'end_date': '2024-12-31',
                 'data_type': 'spot'
             }
+            # 可以添加更多数据集配置
         ],
         'trading_logics': [
             {'type': 1, 'name': 'long_short'},
@@ -132,10 +229,16 @@ def main():
                     # 加载数据
                     data = data_loader.load_data(**dataset_config)
                     
-                    # 处理时间戳
-                    data['timestamp_start'] = data['timestamp_start'].astype(str).str[:10].astype(int)
-                    data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
-                    data = data[['Date','close','volume','quote_asset_volume']]
+                    # 处理时间戳和数据选择的优化
+                    # 确保时间戳是以毫秒为单位
+                    if data['timestamp_start'].max() > 2e10:  # 如果时间戳是以毫秒为单位
+                        data['Date'] = pd.to_datetime(data['timestamp_start'], unit='ms')
+                    else:  # 如果时间戳是以秒为单位
+                        data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
+
+                    # 使用numpy视图而不是复制
+                    required_columns = ['Date', 'close', 'volume', 'quote_asset_volume']
+                    data = data[required_columns].copy(deep=False)
                     
                     # 初始化组件
                     factor_engine = FactorEngine()
@@ -147,13 +250,13 @@ def main():
                     optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)
                     threshold_params = factor_config['params']  # 直接使用配置中的参数
                     
+                    # 设置n_jobs参数，可以根据需要调整
                     optimization_results = optimizer.optimize_thresholds(
                         data=data,
                         threshold_params=threshold_params,
                         factor_class=factor_config['class'],
                         strategy_class=FactorBasedStrategy,
-                        n_jobs=-1,
-                        enforce_threshold_order=False
+                        enforce_threshold_order=False  # 单均线不需要强制顺序
                     )
                     
                     # 创建更详细的结果目录结构
