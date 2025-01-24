@@ -529,6 +529,91 @@ The FactorEngine has been optimized with a state management system:
    - Reduced object creation
    - Better garbage collection
 
+## Strategy Optimizer Memory Management
+
+### Problem Evolution
+
+#### 1. Initial Memory Issue
+The optimizer showed memory leaks during large-scale parameter optimization, particularly when processing multiple trading pairs and timeframes.
+
+#### 2. First Optimization Attempt
+```python
+# Added aggressive memory management
+memory_threshold = 0.85  # Memory usage threshold
+memory_usage = psutil.Process().memory_percent()
+if memory_usage > memory_threshold:
+    gc.collect()
+```
+**Result**: Significant performance degradation due to frequent memory checks and garbage collection
+
+#### 3. Second Attempt
+```python
+# Changed data structure
+results = []  # Instead of results = {}
+results.append((combo, result))
+results_dict = dict(results)
+```
+**Result**: Added unnecessary conversion overhead without memory benefits
+
+### Final Solution
+
+#### 1. Simplified Memory Management
+```python
+# Keep original dictionary structure
+results = {}
+
+# Periodic cleanup only
+if i % (self.batch_size * 5) == 0:
+    gc.collect()
+```
+
+#### 2. Resource Pooling
+```python
+# Factor engine pooling with minimal management
+factor_engines = [FactorEngine() for _ in range(n_jobs)]
+```
+
+#### 3. Immediate Cleanup
+```python
+# Clean up batch results immediately
+del processed_results
+del valid_results
+```
+
+### Key Learnings
+
+1. **Less is More**
+   - Minimal memory management performs better
+   - Avoid frequent garbage collection
+   - Keep data structures simple
+
+2. **Resource Management**
+   - Pool and reuse resources where possible
+   - Clean up resources immediately after use
+   - Use periodic rather than continuous cleanup
+
+3. **Performance Impact**
+   - Frequent garbage collection significantly slows processing
+   - Data structure conversions add unnecessary overhead
+   - Simple periodic cleanup provides the best balance
+
+### Best Practices
+
+1. **Memory Management**
+   - Use periodic cleanup instead of continuous monitoring
+   - Keep original data structures when possible
+   - Clean up batch results immediately
+
+2. **Resource Handling**
+   - Pool resources for reuse
+   - Implement cleanup in finally blocks
+   - Reset pooled resources between uses
+
+3. **Code Structure**
+   - Maintain simple, direct code paths
+   - Avoid unnecessary data transformations
+   - Focus on essential cleanup points
+
 
 
 

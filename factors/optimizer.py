@@ -15,6 +15,7 @@ from joblib import Parallel, delayed, parallel_backend
 import os
 from tqdm import tqdm
 import psutil
+import gc
 
 class StrategyOptimizer:
     def __init__(self, engine: BacktestEngine, evaluator: PerformanceEvaluator):
@@ -34,14 +35,6 @@ class StrategyOptimizer:
                           enforce_threshold_order: bool = True) -> dict:
         """
         优化多个因子阈值，使用joblib并行测试不同组合。
-        
-        Args:
-            data: 回测数据
-            threshold_params: 阈值参数字典
-            factor_class: 因子类
-            strategy_class: 策略类
-            n_jobs: 并行进程数
-            enforce_threshold_order: 是否强制要求下限阈值小于上限阈值
         """
         # 使用传入的n_jobs或默认值
         n_jobs = n_jobs if n_jobs is not None else self.n_jobs
@@ -54,13 +47,14 @@ class StrategyOptimizer:
         if enforce_threshold_order:
             valid_combinations = [
                 combo for combo in param_combinations 
-                if combo[0] <= combo[1]  # 直接比较第一个和第二个参数
+                if combo[0] <= combo[1]
             ]
+            del param_combinations  # 释放内存
         else:
             valid_combinations = param_combinations
         
         results = {}
-        best_sharpe = float('-inf')  # 初始化最佳夏普比率
+        best_sharpe = float('-inf')
         total_combinations = len(valid_combinations)
         total_start_time = pd.Timestamp.now()
         self.logger.info(f"Testing {total_combinations} parameter combinations using {n_jobs} processes")
@@ -68,38 +62,51 @@ class StrategyOptimizer:
         # 为每个进程创建一个因子引擎实例
         factor_engines = [FactorEngine() for _ in range(n_jobs if n_jobs > 0 else self.n_jobs)]
         
-        # 使用上下文管理器优化并行计算
-        with parallel_backend('loky', n_jobs=n_jobs):
-            with tqdm(total=total_combinations, desc="Optimizing parameters") as pbar:
-                for i in range(0, total_combinations, self.batch_size):
-                    batch = valid_combinations[i:min(i + self.batch_size, total_combinations)]
-                    
-                    # 批量处理参数组合
-                    processed_results = Parallel()(
-                        delayed(self._test_combination)(
-                            combination, 
-                            param_names, 
-                            data, 
-                            factor_class, 
-                            strategy_class,
-                            factor_engines[i % len(factor_engines)]  # 循环使用因子引擎
-                        ) for combination in batch
-                    )
-                    
-                    # 高效处理批量结果
-                    valid_results = [(combo, result) for combo, result in zip(batch, processed_results) if result is not None]
-                    if valid_results:
-                        for combo, result in valid_results:
-                            results[combo] = result
-                            best_sharpe = max(best_sharpe, result['sharpe_ratio'])  # 更新最佳夏普比率
+        try:
+            # 使用上下文管理器优化并行计算
+            with parallel_backend('loky', n_jobs=n_jobs):
+                with tqdm(total=total_combinations, desc="Optimizing parameters") as pbar:
+                    for i in range(0, total_combinations, self.batch_size):
+                        batch = valid_combinations[i:min(i + self.batch_size, total_combinations)]
                         
-                        pbar.update(len(batch))
+                        # 批量处理参数组合
+                        processed_results = Parallel()(
+                            delayed(self._test_combination)(
+                                combination, 
+                                param_names, 
+                                data,  # 直接使用传入的数据
+                                factor_class, 
+                                strategy_class,
+                                factor_engines[i % len(factor_engines)]
+                            ) for combination in batch
+                        )
                         
-                        # 每批次更新一次进度信息
-                        if len(valid_results) > 0:
+                        # 高效处理批量结果
+                        valid_results = [(combo, result) for combo, result in zip(batch, processed_results) if result is not None]
+                        if valid_results:
+                            for combo, result in valid_results:
+                                results[combo] = result
+                                best_sharpe = max(best_sharpe, result['sharpe_ratio'])
+                            
+                            pbar.update(len(batch))
                             pbar.set_postfix({
                                 'Best Sharpe': f'{best_sharpe:.4f}'
                             })
+                        
+                        # 定期清理内存
+                        if i % (self.batch_size * 5) == 0:
+                            gc.collect()
+                            
+                        # 清理批次结果
+                        del processed_results
+                        del valid_results
+        
+        finally:
+            # 清理资源
+            for engine in factor_engines:
+                engine.reset()
+            del factor_engines
+            gc.collect()
         
         total_time = (pd.Timestamp.now() - total_start_time).total_seconds()
         self.logger.info(f"Optimization completed in {total_time:.2f}s")

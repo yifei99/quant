@@ -63,30 +63,30 @@ def main():
     # 定义要测试的配置
     test_configs = {
         'datasets': [
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '1d',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '1h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '4h',
-                'start_date': '2021-01-01',
-                'end_date': '2024-12-31',
-                'data_type': 'spot'
-            },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '1d',
+            #     'start_date': '2021-01-01',
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '1h',
+            #     'start_date': '2021-01-01',
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '4h',
+            #     'start_date': '2021-01-01',
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot'
+            # },
             {
                 'exchange': 'binance',
                 'symbol': 'ETHUSDT',
@@ -235,8 +235,11 @@ def main():
                     data = data_loader.load_data(**dataset_config)
                     
                     # 处理时间戳和数据选择的优化
-                    data['timestamp_start'] = (data['timestamp_start'].astype(np.int64) // 1000000000).astype(np.int32)
-                    data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
+                    # 确保时间戳是以毫秒为单位
+                    if data['timestamp_start'].max() > 2e10:  # 如果时间戳是以毫秒为单位
+                        data['Date'] = pd.to_datetime(data['timestamp_start'], unit='ms')
+                    else:  # 如果时间戳是以秒为单位
+                        data['Date'] = pd.to_datetime(data['timestamp_start'], unit='s')
 
                     # 使用numpy视图而不是复制
                     required_columns = ['Date', 'close', 'volume', 'quote_asset_volume']
