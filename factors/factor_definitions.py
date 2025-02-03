@@ -253,4 +253,52 @@ class UsdVolume2MaFactor(Base2MaFactor):
             ma_period_1=ma_period_1,
             ma_period_2=ma_period_2
         )
+
+class VolAdjMomentumFactor(TwoThresholdFactor):
+    """波动率调整动量因子"""
+    def __init__(self, 
+                 name='vol_adj_momentum',
+                 window: int = 20,
+                 vol_window: int = None,
+                 upper_threshold: float = 1.0,
+                 lower_threshold: float = -1.0):
+        """
+        Args:
+            name: 因子名称
+            window: 价格变化窗口
+            vol_window: 波动率计算窗口，默认等于price_window
+            upper_threshold: 买入阈值
+            lower_threshold: 卖出阈值
+        """
+        super().__init__(
+            name=name,
+            column_name='vol_adj_momentum',  # 这里可以是任意值，因为我们会重写calculate方法
+            upper_threshold=upper_threshold,
+            lower_threshold=lower_threshold
+        )
+        self.window = window
+        self.vol_window = vol_window or window
+
+    def calculate(self, data: pd.DataFrame) -> pd.Series:
+        """计算因子值"""
+        # 计算价格变化
+        price_change = data['close'].diff(self.window)
+        
+        # 计算历史波动率 (使用对数收益率的标准差)
+        log_returns = np.log(data['close'] / data['close'].shift(1))
+        volatility = log_returns.rolling(window=self.vol_window).std() * np.sqrt(self.vol_window)
+        
+        # 计算波动率调整后的动量
+        vol_adj_momentum = price_change / (volatility * data['close'])
+        
+        # 使用父类的阈值逻辑生成信号
+        signals = np.where(
+            vol_adj_momentum > self.upper_threshold, 1,
+            np.where(
+                vol_adj_momentum < self.lower_threshold, -1,
+                0
+            )
+        )
+        
+        return pd.Series(signals, index=data.index, name=self.name)
         

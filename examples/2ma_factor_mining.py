@@ -82,9 +82,7 @@ def main():
             # 可以添加更多数据集配置
         ],
         'trading_logics': [
-            {'type': 1, 'name': 'long_short'},
-            {'type': 2, 'name': 'long_only'},
-            {'type': 3, 'name': 'short_only'}
+            {'type': 1, 'name': 'long_short'}
         ],
         'factors': [
             {
@@ -144,8 +142,8 @@ def main():
                     # 初始化组件
                     factor_engine = FactorEngine()
                     logic = get_trading_logic(logic_type=logic_config['type'])
-                    engine = BacktestEngine(trading_logic=logic)
-                    evaluator = PerformanceEvaluator()
+                    engine = BacktestEngine(trading_logic=logic, periods_per_year=365*24)
+                    evaluator = PerformanceEvaluator(periods_per_year=365*24)
                     
                     # 运行优化
                     optimizer = StrategyOptimizer(engine=engine, evaluator=evaluator)

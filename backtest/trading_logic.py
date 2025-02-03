@@ -28,65 +28,42 @@ class BaseTradingLogic(ABC):
 
 
 class StandardTradingLogic(BaseTradingLogic):
-    """
-    Standard trading logic implementation with the following rules:
-    
-    No Position:
-    - Signal 1: Open long position
-    - Signal -1: Open short position
-    - Signal 0: No action
-    
-    Long Position:
-    - Signal 1: No action
-    - Signal -1: Switch to short (sell 2x)
-    - Signal 0: Close position
-    
-    Short Position:
-    - Signal 1: Switch to long (buy 2x)
-    - Signal -1: No action
-    - Signal 0: Close position
+    """标准交易逻辑：
+    1. 多头信号时，如果当前无仓位则做多
+    2. 空头信号时，如果当前无仓位则做空
+    3. 持有多头时遇到空头信号，平多并做空
+    4. 持有空头时遇到多头信号，平空并做多
+    5. 中性信号时，平掉所有仓位
     """
     def execute_trades(self, data: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFrame:
-        """
-        Execute trades based on signals and current market data.
-        使用向量化操作优化性能
-        """
-        # 初始化 portfolio
+        # Initialize portfolio
         portfolio = pd.DataFrame(index=data.index)
         portfolio['holdings'] = 0
         portfolio['signal'] = signals['signal']
         portfolio['close'] = data['close']
         portfolio['Date'] = data['Date']
         
-        # 获取所有信号和持仓的numpy数组，提高访问速度
+        # 获取numpy数组以提高性能
         signal_array = signals['signal'].values
-        holdings_array = portfolio['holdings'].values
+        holdings_array = np.zeros(len(data))  # 预分配数组
         
-        # 跳过第一天
+        # 跳过第一天，使用向量化操作
         for i in range(1, len(data)):
-            start_time = time.time()
-            # 复制前一天的持仓
-            holdings_array[i] = holdings_array[i-1]
-            
             signal = signal_array[i]
-            current_holdings = holdings_array[i]
+            prev_holdings = holdings_array[i-1]
             
-            # 使用布尔运算替代多个if-else
-            if current_holdings == 0:  # 无仓位
-                holdings_array[i] = np.where(signal == 1, 1,
-                                  np.where(signal == -1, -1, 0))
-            elif current_holdings > 0:  # 多仓
-                holdings_array[i] = np.where(signal == -1, -1,
-                                  np.where(signal == 0, 0, 1))
-            else:  # 空仓
-                holdings_array[i] = np.where(signal == 1, 1,
-                                  np.where(signal == 0, 0, -1))
+            # 简化逻辑判断，减少嵌套
+            if signal == 1:  # 多头信号
+                holdings_array[i] = 1
+            elif signal == -1:  # 空头信号
+                holdings_array[i] = -1
+            elif signal == 0:  # 中性信号
+                holdings_array[i] = 0
+            else:  # 保持前一天持仓
+                holdings_array[i] = prev_holdings
         
-            end_time = time.time()
-            print(f"Time taken: {end_time - start_time} seconds")
-        # 更新portfolio的holdings列
+        # 更新portfolio
         portfolio['holdings'] = holdings_array
-        
         return portfolio
 
 class HoldTradingLogic(BaseTradingLogic):
@@ -106,8 +83,6 @@ class HoldTradingLogic(BaseTradingLogic):
         holdings_array = portfolio['holdings'].values
         
         # 跳过第一天
-        # print(data.shape)
-        # start_time = time.time()
         for i in range(1, len(data)):
             # 复制前一天的持仓
             holdings_array[i] = holdings_array[i-1]
@@ -125,8 +100,6 @@ class HoldTradingLogic(BaseTradingLogic):
                 holdings_array[i] = np.where(signal == 1, 1, -1)
         
         # 更新portfolio
-        # end_time = time.time()
-        # print(f"Time taken: {end_time - start_time} seconds")
         portfolio['holdings'] = holdings_array
         return portfolio
 
