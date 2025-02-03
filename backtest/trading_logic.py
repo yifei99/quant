@@ -52,13 +52,7 @@ class StandardTradingLogic(BaseTradingLogic):
             signal = signal_array[i]
 
             
-            # 简化逻辑判断，减少嵌套
-            if signal == 1:  # 多头信号
-                holdings_array[i] = 1
-            elif signal == -1:  # 空头信号
-                holdings_array[i] = -1
-            elif signal == 0:  # 中性信号
-                holdings_array[i] = 0
+            holdings_array[i] = signal
 
         
         # 更新portfolio
