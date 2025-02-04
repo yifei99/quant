@@ -301,4 +301,106 @@ class VolAdjMomentumFactor(TwoThresholdFactor):
         )
         
         return pd.Series(signals, index=data.index, name=self.name)
+
+class LiquidityZoneReversionFactor(BaseFactor):
+    """
+    Liquidity Zone Reversion Factor
+    
+    Generates signals based on price deviations from high-volume zones.
+    Buy when price is significantly below the high-volume zone,
+    Sell when price is significantly above the high-volume zone.
+    """
+    def __init__(self, 
+                 name='liquidity_zone',
+                 volume_window=30, 
+                 upper_threshold=2.0,  # 改为独立的上阈值
+                 lower_threshold=-1.5,  # 改为独立的下阈值
+                 volume_quantile=0.75):
+        """
+        Args:
+            name (str): Factor name
+            volume_window (int): Window size for calculating high-volume zones
+            upper_threshold (float): Upper threshold for short signals
+            lower_threshold (float): Lower threshold for long signals
+            volume_quantile (float): Quantile threshold for defining high-volume zones
+        """
+        super().__init__(name)
+        if volume_window < 1:
+            raise ValueError("volume_window must be at least 1")
+        self.volume_window = volume_window
+        self.upper_threshold = upper_threshold
+        self.lower_threshold = lower_threshold
+        self.volume_quantile = volume_quantile
+        
+    def calculate(self, data: pd.DataFrame) -> pd.Series:
+        """
+        Calculate factor values and trading signals using vectorized operations
+        
+        Args:
+            data (pd.DataFrame): DataFrame containing 'close', 'high', 'low', 'volume'
+            
+        Returns:
+            pd.Series: Trading signals (-1: short, 0: no action, 1: long)
+        """
+        # 确保数据足够长
+        if len(data) < self.volume_window:
+            return pd.Series(0, index=data.index, name=self.name)
+        
+        # 使用numpy数组进行计算以提高性能
+        high = data['high'].values
+        low = data['low'].values
+        close = data['close'].values
+        volume = data['volume'].values
+        
+        # 计算ATR (使用向量化操作)
+        tr1 = high - low
+        tr2 = np.abs(high - np.roll(close, 1))
+        tr3 = np.abs(low - np.roll(close, 1))
+        tr = np.maximum.reduce([tr1, tr2, tr3])
+        
+        # 使用卷积计算ATR (比循环快得多)
+        kernel = np.ones(20) / 20
+        atr = np.convolve(tr, kernel, mode='full')[:len(tr)]
+        atr[:20] = atr[20]  # 填充前20个值
+        
+        # 使用卷积计算移动窗口的volume和close
+        volume_kernel = np.ones(self.volume_window)
+        close_sum = np.convolve(close * volume, volume_kernel, mode='full')[:len(close)]
+        volume_sum = np.convolve(volume, volume_kernel, mode='full')[:len(volume)]
+        
+        # 计算移动平均价格
+        vwap = close_sum / np.maximum(volume_sum, 1e-10)  # 避免除以0
+        
+        # 使用rolling quantile计算高成交量区域
+        volume_df = pd.Series(volume).rolling(self.volume_window)
+        volume_threshold = volume_df.quantile(self.volume_quantile)
+        high_volume_mask = volume >= volume_threshold
+        
+        # 计算高成交量区域价格
+        high_volume_zones = np.where(
+            high_volume_mask,
+            close,
+            vwap
+        )
+        
+        # 计算价格偏离度
+        deviation = np.where(
+            atr > 0,
+            (close - high_volume_zones) / atr,
+            0
+        )
+        
+        # 生成交易信号 (使用不同的上下阈值)
+        signals = np.where(
+            deviation > self.upper_threshold, -1,  # 价格显著高于高成交量区域时做空
+            np.where(
+                deviation < self.lower_threshold, 1,  # 价格显著低于高成交量区域时做多
+                0
+            )
+        )
+        
+        # 填充开始的窗口期
+        signals[:self.volume_window] = 0
+        
+        return pd.Series(signals, index=data.index, name=self.name)
         
