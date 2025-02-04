@@ -403,4 +403,82 @@ class LiquidityZoneReversionFactor(BaseFactor):
         signals[:self.volume_window] = 0
         
         return pd.Series(signals, index=data.index, name=self.name)
+
+class FractalEfficiencyRatio(BaseFactor):
+    """
+    Fractal Efficiency Ratio (FER) Factor
+    
+    FER = D_real / D_straight
+    
+    用于判断市场趋势的存在性和方向：
+    - 1.0 <= FER <= 3.0：存在明显趋势，价格路径相对直接
+    - FER > 3.0：呈现震荡状态，价格路径复杂
+    """
+    def __init__(self, 
+                 name='fractal_efficiency',
+                 window=24,
+                 trend_upper=7.0):     # FER小于此值认为存在趋势，大于此值为震荡
+        """
+        Args:
+            name (str): 因子名称
+            window (int): 计算窗口大小
+            trend_upper (float): 趋势上限阈值，FER小于此值时认为存在趋势，大于此值为震荡
+        """
+        super().__init__(name)
+        self.window = window
+        self.trend_upper = trend_upper
         
+    def calculate(self, data: pd.DataFrame) -> tuple:
+        """
+        计算分形效率比率和趋势方向
+        
+        FER = D_real / D_straight
+        - 1.0 <= FER <= 3.0：存在明显趋势
+        - FER > 3.0：呈现震荡状态
+        """
+        close = data['close'].values
+        fer = np.zeros(len(close))
+        trend_direction = np.zeros(len(close))
+        
+        # 使用向量化操作计算实际路径距离
+        price_changes = np.abs(np.diff(close))
+        
+        # 使用rolling window计算
+        for i in range(self.window, len(close)):
+            # 计算窗口内的实际路径距离
+            window_changes = price_changes[i-self.window:i]
+            d_real = np.sum(window_changes)
+            
+            # 计算直线距离
+            start_price = close[i-self.window]
+            end_price = close[i]
+            d_straight = np.abs(end_price - start_price)
+            
+            # 计算FER (避免除以0)
+            if d_straight > 0:
+                fer[i] = d_real / d_straight
+            else:
+                fer[i] = 1.0
+            
+            # 判断趋势方向
+            if 1.0 <= fer[i] <= self.trend_upper:
+                trend_direction[i] = np.sign(end_price - start_price)
+            else:  # FER > trend_upper
+                trend_direction[i] = 0  # 震荡市场
+        
+        # 填充开始的窗口期
+        fer[:self.window] = fer[self.window]
+        trend_direction[:self.window] = trend_direction[self.window]
+        
+        return pd.Series(fer, index=data.index, name=self.name), pd.Series(trend_direction, index=data.index, name=f"{self.name}_direction")
+    
+    def get_trend_state(self, fer_value: float, direction_value: float) -> str:
+        """
+        根据FER值和方向判断趋势状态
+        """
+        if 1.0 <= fer_value <= self.trend_upper:
+            if direction_value > 0:
+                return "Uptrend"  # 上涨趋势
+            elif direction_value < 0:
+                return "Downtrend"  # 下跌趋势
+        return "Ranging"  # 震荡市
