@@ -43,14 +43,37 @@ class StrategyOptimizer:
         # 预先生成参数组合
         param_names = list(threshold_params.keys())
         param_values = list(threshold_params.values())
-        param_combinations = list(product(*param_values))
+        
+        # 如果window在参数中，为每个window值生成对应的fer_trend_upper范围
+        if 'window' in threshold_params and 'fer_trend_upper' in threshold_params:
+            windows = threshold_params['window']
+            param_combinations = []
+            for window in windows:
+                # 动态生成fer_trend_upper的范围
+                fer_trend_upper = np.arange(
+                    max(1.0, window/24),  # 最小值
+                    min(30.0, window/8),  # 最大值
+                    max(0.1, window/240)  # 步长
+                )
+                # 获取其他参数的值
+                other_params = {k: v for k, v in threshold_params.items() 
+                              if k not in ['window', 'fer_trend_upper']}
+                other_values = list(product(*[v for v in other_params.values()]))
+                
+                # 组合当前window的所有参数
+                for trend_upper in fer_trend_upper:
+                    for other_combo in other_values:
+                        param_combinations.append((window, trend_upper) + other_combo)
+        else:
+            # 原有的参数组合生成方式
+            param_combinations = list(product(*param_values))
         
         if enforce_threshold_order:
             valid_combinations = [
                 combo for combo in param_combinations 
                 if combo[0] <= combo[1]
             ]
-            del param_combinations  # 释放内存
+            del param_combinations
         else:
             valid_combinations = param_combinations
         

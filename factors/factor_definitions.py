@@ -411,74 +411,97 @@ class FractalEfficiencyRatio(BaseFactor):
     FER = D_real / D_straight
     
     用于判断市场趋势的存在性和方向：
-    - 1.0 <= FER <= 3.0：存在明显趋势，价格路径相对直接
-    - FER > 3.0：呈现震荡状态，价格路径复杂
+    - 1.0 <= FER <= trend_upper：存在明显趋势，返回1(上涨)或-1(下跌)
+    - FER > trend_upper：震荡市场，返回0
     """
     def __init__(self, 
                  name='fractal_efficiency',
                  window=24,
-                 trend_upper=7.0):     # FER小于此值认为存在趋势，大于此值为震荡
-        """
-        Args:
-            name (str): 因子名称
-            window (int): 计算窗口大小
-            trend_upper (float): 趋势上限阈值，FER小于此值时认为存在趋势，大于此值为震荡
-        """
+                 trend_upper=3.0):
         super().__init__(name)
         self.window = window
         self.trend_upper = trend_upper
         
-    def calculate(self, data: pd.DataFrame) -> tuple:
+    def calculate(self, data: pd.DataFrame) -> pd.Series:
         """
-        计算分形效率比率和趋势方向
+        计算FER因子值和趋势信号，使用向量化操作优化性能
         
-        FER = D_real / D_straight
-        - 1.0 <= FER <= 3.0：存在明显趋势
-        - FER > 3.0：呈现震荡状态
+        Returns:
+            pd.Series: 趋势信号 (1: 上涨趋势, -1: 下跌趋势, 0: 震荡)
         """
         close = data['close'].values
-        fer = np.zeros(len(close))
-        trend_direction = np.zeros(len(close))
         
-        # 使用向量化操作计算实际路径距离
+        # 计算实际路径距离
         price_changes = np.abs(np.diff(close))
+        # 使用卷积计算移动窗口和
+        kernel = np.ones(self.window)
+        d_real = np.convolve(price_changes, kernel, mode='valid')
         
-        # 使用rolling window计算
+        # 初始化信号数组，前window个周期设为0（无信号）
+        signals = np.zeros(len(close))
+        
+        # 计算直线距离和FER
         for i in range(self.window, len(close)):
-            # 计算窗口内的实际路径距离
-            window_changes = price_changes[i-self.window:i]
-            d_real = np.sum(window_changes)
-            
-            # 计算直线距离
             start_price = close[i-self.window]
             end_price = close[i]
-            d_straight = np.abs(end_price - start_price)
+            d_straight = abs(end_price - start_price)
             
-            # 计算FER (避免除以0)
+            # 计算FER
             if d_straight > 0:
-                fer[i] = d_real / d_straight
+                fer = d_real[i-self.window] / d_straight
             else:
-                fer[i] = 1.0
-            
-            # 判断趋势方向
-            if 1.0 <= fer[i] <= self.trend_upper:
-                trend_direction[i] = np.sign(end_price - start_price)
-            else:  # FER > trend_upper
-                trend_direction[i] = 0  # 震荡市场
+                fer = 1.0
+                
+            # 生成信号
+            if 1.0 <= fer <= self.trend_upper:
+                signals[i] = np.sign(end_price - start_price)
+            else:
+                signals[i] = 0
         
-        # 填充开始的窗口期
-        fer[:self.window] = fer[self.window]
-        trend_direction[:self.window] = trend_direction[self.window]
-        
-        return pd.Series(fer, index=data.index, name=self.name), pd.Series(trend_direction, index=data.index, name=f"{self.name}_direction")
+        return pd.Series(signals, index=data.index, name=self.name)
+
+class FERVolMomentumFactor(BaseFactor):
+    """
+    结合FER和VolAdjMomentum的组合因子
     
-    def get_trend_state(self, fer_value: float, direction_value: float) -> str:
+    逻辑：
+    1. 只有当FER给出趋势信号(1)时，才采用VolAdjMomentum的信号
+    2. 其他情况（FER为0或-1）时，信号为0
+    """
+    def __init__(self, 
+                 name='fer_volmom',
+                 window=24,
+                 fer_trend_upper=3.0,
+                 upper_threshold=0.5,
+                 lower_threshold=-0.5):
+        super().__init__(name)
+        self.window = window
+        self.fer_trend_upper = fer_trend_upper
+        self.upper_threshold = upper_threshold
+        self.lower_threshold = lower_threshold
+        
+    def calculate(self, data: pd.DataFrame) -> pd.Series:
         """
-        根据FER值和方向判断趋势状态
+        计算组合信号
         """
-        if 1.0 <= fer_value <= self.trend_upper:
-            if direction_value > 0:
-                return "Uptrend"  # 上涨趋势
-            elif direction_value < 0:
-                return "Downtrend"  # 下跌趋势
-        return "Ranging"  # 震荡市
+        # 使用现有的FER因子
+        fer_factor = FractalEfficiencyRatio(
+            window=self.window,
+            trend_upper=self.fer_trend_upper
+        )
+        fer_signals = fer_factor.calculate(data)
+        
+        # 使用现有的VolAdjMomentum因子
+        volmom_factor = VolAdjMomentumFactor(
+            window=self.window,
+            upper_threshold=self.upper_threshold,
+            lower_threshold=self.lower_threshold
+        )
+        volmom_signals = volmom_factor.calculate(data)
+        
+        # 组合信号：只在FER为1时采用VolAdjMomentum的信号
+        combined_signals = pd.Series(0, index=data.index, name=self.name)
+        trend_mask = (fer_signals == 1)
+        combined_signals[trend_mask] = volmom_signals[trend_mask]
+        
+        return combined_signals
