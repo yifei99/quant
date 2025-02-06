@@ -505,3 +505,52 @@ class FERVolMomentumFactor(BaseFactor):
         combined_signals[trend_mask] = volmom_signals[trend_mask]
         
         return combined_signals
+
+class FERLiquidityZoneFactor(BaseFactor):
+    """
+    结合FER和LiquidityZoneReversion的组合因子
+    
+    逻辑：
+    1. 只有当FER给出震荡信号(0)时，才采用LiquidityZoneReversion的信号
+    2. 其他情况（FER为1或-1）时，信号为0
+    """
+    def __init__(self, 
+                 name='fer_liq_zone',
+                 window=24,                    # 同时用作FER和流动性区域的窗口
+                 fer_trend_upper=3.0,
+                 upper_threshold=2.0,
+                 lower_threshold=-1.5,
+                 volume_quantile=0.75):
+        super().__init__(name)
+        self.window = window
+        self.fer_trend_upper = fer_trend_upper
+        self.upper_threshold = upper_threshold
+        self.lower_threshold = lower_threshold
+        self.volume_quantile = volume_quantile
+        
+    def calculate(self, data: pd.DataFrame) -> pd.Series:
+        """
+        计算组合信号
+        """
+        # 使用现有的FER因子
+        fer_factor = FractalEfficiencyRatio(
+            window=self.window,
+            trend_upper=self.fer_trend_upper
+        )
+        fer_signals = fer_factor.calculate(data)
+        
+        # 使用现有的LiquidityZoneReversion因子，volume_window使用相同的window值
+        liq_zone_factor = LiquidityZoneReversionFactor(
+            volume_window=self.window,
+            upper_threshold=self.upper_threshold,
+            lower_threshold=self.lower_threshold,
+            volume_quantile=self.volume_quantile
+        )
+        liq_zone_signals = liq_zone_factor.calculate(data)
+        
+        # 组合信号：只在FER为0时采用LiquidityZoneReversion的信号
+        combined_signals = pd.Series(0, index=data.index, name=self.name)
+        oscillation_mask = (fer_signals == 0)
+        combined_signals[oscillation_mask] = liq_zone_signals[oscillation_mask]
+        
+        return combined_signals

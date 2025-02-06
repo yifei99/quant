@@ -8,7 +8,7 @@ import logging
 from backtest.backtest_engine import BacktestEngine
 from backtest.strategy import FactorBasedStrategy
 from backtest.performance import PerformanceEvaluator
-from factors.factor_definitions import FERVolMomentumFactor
+from factors.factor_definitions import FERLiquidityZoneFactor
 from factors.optimizer import StrategyOptimizer
 from data.data_loader import DataLoader
 from backtest.trading_logic import StandardTradingLogic
@@ -22,7 +22,7 @@ def main():
     )
     logger = logging.getLogger(__name__)
     
-    logger.info("Starting FER-VolMomentum factor mining...")
+    logger.info("Starting FER-LiquidityZone factor mining...")
     start_time = pd.Timestamp.now()
     
     # 设置测试配置
@@ -50,13 +50,14 @@ def main():
         ],
         'factors': [
             {
-                'class': FERVolMomentumFactor,
-                'name': 'fer_volmom',
+                'class': FERLiquidityZoneFactor,
+                'name': 'fer_liq_zone',
                 'params': {
-                    'window': np.arange(3, 480, 2),
-                    'fer_trend_upper': np.arange(3.0, 24.0, 0.1), 
-                    'upper_threshold': np.arange(0.2, 2.0, 0.1),
-                    'lower_threshold': np.arange(-4.0, -3.8, 0.1)
+                    'window': np.arange(3, 43, 2),          # 窗口大小
+                    'fer_trend_upper': np.arange(3.0, 24.0, 0.1),  # FER趋势上限
+                    'upper_threshold': np.arange(4.0, 5.0, 0.2),   # 上阈值
+                    'lower_threshold': np.arange(-3.0, -1.0, 0.2), # 下阈值
+                    'volume_quantile': np.arange(0.7, 0.95, 0.05)  # 成交量分位数
                 }
             }
         ]
@@ -134,6 +135,7 @@ def main():
                             'fer_trend_upper': combo[1],
                             'upper_threshold': combo[2],
                             'lower_threshold': combo[3],
+                            'volume_quantile': combo[4],
                             'sharpe_ratio': result['sharpe_ratio']
                         }
                         for combo, result in optimization_results.items()
@@ -169,4 +171,4 @@ def main():
     logger.info("Program completed successfully")
 
 if __name__ == "__main__":
-    main()
+    main() 
