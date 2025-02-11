@@ -11,15 +11,15 @@ class DataDownloader:
     def __init__(self, symbol, interval, start_date, end_date, data_folder, data_type="spot", exchange="binance"):
         """
         Initialize DataDownloader instance.
-
+        
         Args:
             symbol (str): Trading pair symbol, e.g., "BTCUSDT"
             interval (str): Kline interval, e.g., "1m", "5m", "1h", "1d"
             start_date (str): Start date in "YYYY-MM-DD" format
             end_date (str): End date in "YYYY-MM-DD" format
             data_folder (str): Data storage directory, e.g., "./dataset/binance"
-            data_type (str): Data type, "spot" or "futures". Default is "spot"
-            exchange (str): Exchange name, default is "binance". Can be extended to support others like "bybit"
+            data_type (str): Data type, "spot", "futures" or "metrics". Default is "spot"
+            exchange (str): Exchange name, default is "binance"
         """
         self.symbol = symbol
         self.interval = interval
@@ -27,16 +27,19 @@ class DataDownloader:
         self.end_date = end_date
         self.data_folder = data_folder
         self.data_type = data_type
-        self.exchange = exchange  # 新增交易所參數
+        self.exchange = exchange
         self.download_dir = "downloads"
-        self.interval_folder = os.path.join(data_folder, symbol, data_type, interval)
+        
+        # 根据数据类型设置不同的文件夹路径
+        if data_type == "metrics":
+            self.interval_folder = os.path.join(data_folder, symbol, data_type)
+        else:
+            self.interval_folder = os.path.join(data_folder, symbol, data_type, interval)
+            
         self.create_dir(self.download_dir)
         self.create_dir(self.interval_folder)
         
-        # 设置日志
         self.logger = logging.getLogger(__name__)
-        
-        # 设置并发数
         self.max_workers = 6
 
     def create_dir(self, path):
@@ -85,8 +88,13 @@ class DataDownloader:
         """单个日期的下载和处理"""
         date_str = date.strftime("%Y-%m-%d")
         base_url = "https://data.binance.vision/data"
-        market_type = "spot" if self.data_type == "spot" else "futures/um"
-        url = f"{base_url}/{market_type}/daily/klines/{self.symbol}/{self.interval}/{self.symbol}-{self.interval}-{date_str}.zip"
+        
+        # 根据数据类型构建不同的URL
+        if self.data_type == "metrics":
+            url = f"{base_url}/futures/um/daily/metrics/{self.symbol}/{self.symbol}-metrics-{date_str}.zip"
+        else:
+            market_type = "spot" if self.data_type == "spot" else "futures/um"
+            url = f"{base_url}/{market_type}/daily/klines/{self.symbol}/{self.interval}/{self.symbol}-{self.interval}-{date_str}.zip"
         
         zip_file_path = self.download_file(url, self.download_dir)
         if zip_file_path:
@@ -128,18 +136,59 @@ class DataDownloader:
             return None
             
         final_data = pd.concat(all_data, ignore_index=True)
-        final_data.columns = [
-            "timestamp_start", "open", "high", "low", "close", "volume",
-            "timestamp_end", "quote_asset_volume", "number_of_trades", 
-            "taker_buy_base", "taker_buy_quote", "ignore"
-        ]
         
-        final_data = final_data.sort_values(by="timestamp_start").reset_index(drop=True)
+        # 根据数据类型设置不同的列名
+        if self.data_type == "metrics":
+            # 设置正确的metrics数据列名
+            final_data.columns = [
+                "create_time",
+                "symbol",
+                "sum_open_interest",
+                "sum_open_interest_value",
+                "count_toptrader_long_short_ratio",
+                "sum_toptrader_long_short_ratio",
+                "count_long_short_ratio",
+                "sum_taker_long_short_vol_ratio"
+            ]
+            
+            # 删除可能的header行（包含列名的行）
+            final_data = final_data[final_data['create_time'] != 'create_time']
+            
+            # 确保数据类型正确
+            numeric_columns = [
+                'sum_open_interest',
+                'sum_open_interest_value',
+                'count_toptrader_long_short_ratio',
+                'sum_toptrader_long_short_ratio',
+                'count_long_short_ratio',
+                'sum_taker_long_short_vol_ratio'
+            ]
+            
+            # 转换数据类型
+            for col in numeric_columns:
+                final_data[col] = pd.to_numeric(final_data[col], errors='coerce')
+                
+            # 转换时间戳
+            final_data['create_time'] = pd.to_datetime(final_data['create_time'])
+            
+            # 按时间排序并重置索引
+            final_data = final_data.sort_values(by="create_time").reset_index(drop=True)
+            
+        else:
+            final_data.columns = [
+                "timestamp_start", "open", "high", "low", "close", "volume",
+                "timestamp_end", "quote_asset_volume", "number_of_trades", 
+                "taker_buy_base", "taker_buy_quote", "ignore"
+            ]
+            final_data = final_data.sort_values(by="timestamp_start").reset_index(drop=True)
         
         # 保存为 HDF5 文件
         hdf5_file_name = f"{self.symbol}_{self.interval}_{self.start_date}_to_{self.end_date}.h5"
+        if self.data_type == "metrics":
+            hdf5_file_name = f"{self.symbol}_metrics_{self.start_date}_to_{self.end_date}.h5"
+            
         hdf5_file_path = os.path.join(self.interval_folder, hdf5_file_name)
-        final_data.to_hdf(hdf5_file_path, key="prices", mode="w", format="table")
+        final_data.to_hdf(hdf5_file_path, key="data", mode="w", format="table")
         
         return final_data
 
@@ -166,3 +215,20 @@ class DataDownloader:
 # # 創建 DataDownloader 實例，選擇對應的交易所
 # data_downloader = DataDownloader(symbol, interval, start_date, end_date, data_folder, data_type, exchange)
 # data = data_downloader.fetch_and_process_data()
+
+# 下载 metrics 数据
+symbol = "SOLUSDT"
+start_date = "2021-12-01"
+end_date = "2024-12-31"
+data_folder = "../dataset/binance"
+
+downloader = DataDownloader(
+    symbol=symbol,
+    interval=None,  # metrics数据不需要interval
+    start_date=start_date,
+    end_date=end_date,
+    data_folder=data_folder,
+    data_type="metrics",
+    exchange="binance"
+)
+data = downloader.fetch_and_process_data()

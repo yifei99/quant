@@ -24,29 +24,41 @@ class DataLoader:
         )
         self.logger = logging.getLogger()
 
-    def list_available_files(self, exchange, symbol, interval, data_type="spot"):
+    def list_available_files(self, exchange, symbol, interval=None, data_type="spot"):
         """
         列出指定參數下的所有可用 HDF5 文件，支持模糊查找。
 
         參數:
             exchange (str): 交易所名稱，例如 "binance", "bybit".
             symbol (str): 幣種符號，例如 "BTCUSDT".
-            interval (str): K 線間隔，例如 "1m", "5m", "1h", "1d".
-            data_type (str): 數據類型，"spot" 表示現貨數據，"futures" 表示合約數據。預設為 "spot".
+            interval (str, optional): K 線間隔，例如 "1m", "5m", "1h", "1d". metrics数据不需要此参数.
+            data_type (str): 數據類型，"spot", "futures" 或 "metrics". 預設為 "spot".
 
         返回:
             list: 符合條件的 HDF5 文件路徑列表。
         """
-        target_folder = os.path.join(
-            self.data_folder, exchange, symbol, data_type, interval
-        )
+        # 根据数据类型构建目标文件夹路径
+        if data_type == "metrics":
+            target_folder = os.path.join(
+                self.data_folder, exchange, symbol, data_type
+            )
+        else:
+            if interval is None:
+                raise ValueError("interval is required for non-metrics data")
+            target_folder = os.path.join(
+                self.data_folder, exchange, symbol, data_type, interval
+            )
 
         if not os.path.exists(target_folder):
             self.logger.error(f"The folder {target_folder} does not exist.")
             raise FileNotFoundError(f"The folder {target_folder} does not exist.")
 
         # 使用通配符模糊查找所有 HDF5 文件
-        file_pattern = f"{symbol}_{interval}_*_to_*.h5"
+        if data_type == "metrics":
+            file_pattern = f"{symbol}_metrics_*_to_*.h5"
+        else:
+            file_pattern = f"{symbol}_{interval}_*_to_*.h5"
+            
         search_path = os.path.join(target_folder, file_pattern)
         files = glob.glob(search_path)
         self.logger.info(f"Found {len(files)} HDF5 files in {target_folder}.")
@@ -75,45 +87,54 @@ class DataLoader:
             self.logger.error(f"Failed to load data from {file_path}: {e}")
             return pd.DataFrame()
 
-    def load_data(self, exchange, symbol, interval, start_date, end_date, data_type="spot"):
+    def load_data(self, exchange, symbol, interval=None, start_date=None, end_date=None, data_type="spot"):
         """
         根據指定的參數加載已合併的 HDF5 數據文件。
 
         參數:
             exchange (str): 交易所名稱，例如 "binance", "bybit".
             symbol (str): 幣種符號，例如 "BTCUSDT".
-            interval (str): K 線間隔，例如 "1m", "5m", "1h", "1d".
+            interval (str, optional): K 線間隔，例如 "1m", "5m", "1h", "1d". metrics数据不需要此参数.
             start_date (str): 起始日期，格式 "YYYY-MM-DD".
             end_date (str): 結束日期，格式 "YYYY-MM-DD".
-            data_type (str): 數據類型，"spot" 表示現貨數據，"futures" 表示合約數據。預設為 "spot".
+            data_type (str): 數據類型，"spot", "futures" 或 "metrics". 預設為 "spot".
 
         返回:
             pd.DataFrame: 加載的數據，如果文件不存在或加載失敗，返回空的 DataFrame。
         """
-        # 構建目標文件夾路徑，包含 exchange
-        target_folder = os.path.join(
-            self.data_folder, exchange, symbol, data_type, interval
-        )
+        # 构建目标文件夹路径
+        if data_type == "metrics":
+            target_folder = os.path.join(
+                self.data_folder, exchange, symbol, data_type
+            )
+            # 动态生成 HDF5 文件的名称模式
+            file_pattern = f"{symbol}_metrics_{start_date}_to_{end_date}.h5"
+        else:
+            if interval is None:
+                raise ValueError("interval is required for non-metrics data")
+            target_folder = os.path.join(
+                self.data_folder, exchange, symbol, data_type, interval
+            )
+            # 动态生成 HDF5 文件的名称模式
+            file_pattern = f"{symbol}_{interval}_{start_date}_to_{end_date}.h5"
 
         if not os.path.exists(target_folder):
             self.logger.error(f"The folder {target_folder} does not exist.")
             raise FileNotFoundError(f"The folder {target_folder} does not exist.")
 
-        # 動態生成 HDF5 文件的名稱模式
-        file_pattern = f"{symbol}_{interval}_{start_date}_to_{end_date}.h5"
         file_path = os.path.join(target_folder, file_pattern)
 
         if os.path.isfile(file_path):
-            # 讀取指定範圍的 HDF5 文件
+            # 读取指定范围的 HDF5 文件
             try:
-                data = pd.read_hdf(file_path, key="prices")
+                data = pd.read_hdf(file_path, key="data")
                 self.logger.info(f"Loaded data from {file_path}")
                 return data
             except Exception as e:
                 self.logger.error(f"Failed to load data from {file_path}: {e}")
                 return pd.DataFrame()
         else:
-            # 如果精確匹配的文件不存在，進行模糊查找
+            # 如果精确匹配的文件不存在，进行模糊查找
             self.logger.info(f"Exact file {file_path} not found. Performing fuzzy search.")
             matching_files = self.list_available_files(exchange, symbol, interval, data_type)
 
