@@ -6,3 +6,4 @@ numpy
 tdqm
 psutil
 scikit-optimize
+mplfinance

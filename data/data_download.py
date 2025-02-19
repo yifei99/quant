@@ -19,292 +19,292 @@ def main():
             # 现货数据
             {
                 'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '1h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '1m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '5m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '15m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '30m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '2h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '4h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '6h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '8h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'BTCUSDT',
-                'interval': '12h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '1d',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
                 'symbol': 'ETHUSDT',
                 'interval': '1h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '1m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '5m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '15m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '30m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '2h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '4h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '6h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '8h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'ETHUSDT',
-                'interval': '12h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '1d',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '1h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '1m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '5m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '15m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '30m',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '2h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '4h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '12h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '6h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
-                'data_type': 'spot',
-                'data_folder': '../dataset/binance'
-            },
-            {
-                'exchange': 'binance',
-                'symbol': 'SOLUSDT',
-                'interval': '8h',
-                'start_date': '2021-01-01',  
-                'end_date': '2024-12-31',
+                'start_date': '2020-12-16',  
+                'end_date': '2025-02-14',
                 'data_type': 'spot',
                 'data_folder': '../dataset/binance'
             }
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'BTCUSDT',
+            #     'interval': '1m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'BTCUSDT',
+            #     'interval': '5m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'BTCUSDT',
+            #     'interval': '15m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'BTCUSDT',
+            #     'interval': '30m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'BTCUSDT',
+            #     'interval': '2h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'BTCUSDT',
+            #     'interval': '4h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'BTCUSDT',
+            #     'interval': '6h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'BTCUSDT',
+            #     'interval': '8h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'BTCUSDT',
+            #     'interval': '12h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '1d',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '1h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '1m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '5m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '15m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '30m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '2h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '4h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '6h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '8h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'ETHUSDT',
+            #     'interval': '12h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '1d',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '1h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '1m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '5m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '15m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '30m',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '2h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '4h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '12h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '6h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # },
+            # {
+            #     'exchange': 'binance',
+            #     'symbol': 'SOLUSDT',
+            #     'interval': '8h',
+            #     'start_date': '2021-01-01',  
+            #     'end_date': '2024-12-31',
+            #     'data_type': 'spot',
+            #     'data_folder': '../dataset/binance'
+            # }
         ]
     }
 

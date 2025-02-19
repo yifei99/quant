@@ -216,19 +216,19 @@ class DataDownloader:
 # data_downloader = DataDownloader(symbol, interval, start_date, end_date, data_folder, data_type, exchange)
 # data = data_downloader.fetch_and_process_data()
 
-# 下载 metrics 数据
-symbol = "SOLUSDT"
-start_date = "2021-12-01"
-end_date = "2024-12-31"
-data_folder = "../dataset/binance"
+# # 下载 metrics 数据
+# symbol = "SOLUSDT"
+# start_date = "2021-12-01"
+# end_date = "2024-12-31"
+# data_folder = "../dataset/binance"
 
-downloader = DataDownloader(
-    symbol=symbol,
-    interval=None,  # metrics数据不需要interval
-    start_date=start_date,
-    end_date=end_date,
-    data_folder=data_folder,
-    data_type="metrics",
-    exchange="binance"
-)
-data = downloader.fetch_and_process_data()
+# downloader = DataDownloader(
+#     symbol=symbol,
+#     interval=None,  # metrics数据不需要interval
+#     start_date=start_date,
+#     end_date=end_date,
+#     data_folder=data_folder,
+#     data_type="metrics",
+#     exchange="binance"
+# )
+# data = downloader.fetch_and_process_data()
