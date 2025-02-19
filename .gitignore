@@ -1,6 +1,7 @@
 */__pycache__/
 venv
-dataset/*
-reports/*
-examples/strategy_performance.html
-examples/strategy_performance.png
+dataset/binance/*
+reports/btc_ma7/*
+reports/BTCUSDT/*
+reports/ETHUSDT/*
+reports/SOLUSDT/*
