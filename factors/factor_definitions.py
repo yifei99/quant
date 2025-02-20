@@ -554,3 +554,60 @@ class FERLiquidityZoneFactor(BaseFactor):
         combined_signals[oscillation_mask] = liq_zone_signals[oscillation_mask]
         
         return combined_signals
+
+class LiquidationRatioFactor(BaseFactor):
+    """
+    清算比例因子
+    """
+    def __init__(self, 
+                 name='liquidation_ratio',
+                 threshold: float = 0.01,
+                 hold_hours: int = 24):
+        super().__init__(name)
+        self.threshold = threshold
+        self.hold_hours = hold_hours
+        
+    def calculate(self, data: pd.DataFrame) -> pd.Series:
+        """计算因子信号，使用向量化操作"""
+        # 确保数据是副本并重置索引
+        data = data.copy()
+        if data.index.name != 'Date':
+            data = data.reset_index()
+            
+        # 检查必需的列
+        if 'liquidation_ratio' not in data.columns:
+            raise ValueError("DataFrame must contain 'liquidation_ratio' column")
+            
+        # 确保有Date列或索引
+        if 'Date' not in data.columns and data.index.name != 'Date':
+            raise ValueError("Data must have 'Date' column or index")
+            
+        # 如果Date是列，将其设置为索引
+        if 'Date' in data.columns:
+            data['Date'] = pd.to_datetime(data['Date'])
+            data = data.set_index('Date')
+        
+        # 确保索引是datetime
+        if not isinstance(data.index, pd.DatetimeIndex):
+            data.index = pd.to_datetime(data.index)
+        
+        # 按时间排序
+        data = data.sort_index()
+        
+        # 初始化信号数组
+        signals = pd.Series(0, index=data.index, name=self.name)
+        
+        # 找到所有超过阈值的点
+        trigger_points = data.index[data['liquidation_ratio'] > self.threshold]
+        
+        if len(trigger_points) > 0:
+            # 生成买入信号
+            signals[trigger_points] = 1
+            
+            # 生成卖出信号
+            for entry_date in trigger_points:
+                exit_date = entry_date + pd.Timedelta(hours=self.hold_hours)
+                if exit_date in data.index:
+                    signals[exit_date] = -1
+        
+        return signals
