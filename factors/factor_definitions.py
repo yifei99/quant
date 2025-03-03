@@ -3,6 +3,7 @@
 import pandas as pd
 from abc import ABC, abstractmethod
 import numpy as np
+import logging
 
 class BaseFactor(ABC):
     """
@@ -611,3 +612,55 @@ class LiquidationRatioFactor(BaseFactor):
                     signals[exit_date] = -1
         
         return signals
+
+class LiquidationWithMAFactor(BaseMaFactor):
+    """
+    清算因子与单MA组合因子
+    
+    信号规则：
+    1: 同时满足两个条件时发出买入信号：
+       - 清算比例超过阈值
+       - 价格下穿MA
+    -1: 价格上穿MA时发出卖出信号
+    0: 其他情况不发出信号
+    """
+    def __init__(self, 
+                 name='liquidation_ma_reversion',
+                 threshold: float = 0.01,
+                 ma_period: int = 24,
+                 column_name: str = 'close'):
+        super().__init__(
+            name=name,
+            column_name=column_name,
+            ma_period=ma_period
+        )
+        self.threshold = threshold
+        
+    def calculate(self, data: pd.DataFrame) -> pd.Series:
+        """
+        计算因子信号
+        
+        Returns:
+            pd.Series: 信号序列 (1: 买入信号, -1: 卖出信号, 0: 无信号)
+        """
+        # 计算MA
+        price = data[self.column_name]
+        ma = price.rolling(window=self.ma_period).mean()
+        
+        # 生成MA穿越信号
+        ma_cross_up = (price > ma) & (price.shift(1) <= ma.shift(1))    # 上穿
+        ma_cross_down = (price < ma) & (price.shift(1) >= ma.shift(1))  # 下穿
+        
+        # 生成清算触发信号
+        liquidation_trigger = (data['liquidation_ratio'] > self.threshold) & \
+                            (data['liquidation_ratio'].shift(1) <= self.threshold)
+        
+        # 构建信号序列
+        signals = pd.Series(0, index=data.index)
+        # 买入信号：清算触发且价格下穿MA
+        signals[liquidation_trigger & ma_cross_down] = 1
+        # 卖出信号：价格上穿MA
+        signals[ma_cross_up] = -1
+        
+        return signals.rename(self.name)
+

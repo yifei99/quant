@@ -19,7 +19,7 @@ def main():
             # 现货数据
             {
                 'exchange': 'binance',
-                'symbol': 'ETHUSDT',
+                'symbol': 'BTCUSDT',
                 'interval': '1h',
                 'start_date': '2020-12-16',  
                 'end_date': '2025-02-14',
